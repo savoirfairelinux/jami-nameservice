@@ -1,0 +1,12 @@
+{
+  "name": "ringns",
+  "version": "1.0.0",
+  "description": "Ring name service",
+  "main": "index.js",
+  "keywords": [],
+  "author": "Adrien Béraud <adrien.beraud@savoirfairelinux.com>",
+  "license": "GPL-3.0",
+  "dependencies": {
+    "web3": ">=0.15"
+  }
+}
