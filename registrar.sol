@@ -36,6 +36,15 @@ contract GlobalRegistrar is Registrar {
       Changed(_name);
     }
   }
+  function reserveFor(bytes32 _name, address _owner, address _a) {
+    if (m_toRecord[_name].owner == 0) {
+      m_toRecord[_name].owner = _owner;
+      m_toRecord[_name].primary = _a;
+      m_toName[_a] = _name;
+      Changed(_name);
+      PrimaryChanged(_name, _a);
+    }
+  }
 
   modifier onlyrecordowner(bytes32 _name) { if (m_toRecord[_name].owner == msg.sender) _ }
 
