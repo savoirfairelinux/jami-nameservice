@@ -21,9 +21,7 @@ var regContract;
 var reg;
 
 function unlockAccount() {
-    //account = web3.eth.accounts[0];
     web3.personal.unlockAccount(coinbase, "toto");
-    //loadContract();
 }
 
 function getRemainingGaz() {
@@ -105,6 +103,10 @@ function initContract() {
     });
 }
 
+function isHashZero(h) {
+    return h == "0x" || h == "0x0000000000000000000000000000000000000000";
+}
+
 function startServer() {
     console.log("Starting web server");
     var app = express();
@@ -112,12 +114,29 @@ function startServer() {
     app.use(bodyParser.json());
     app.get("/name/:name", function(req, http_res) {
         reg.addr(req.params.name, function(err, res) {
-            http_res.end(JSON.stringify({"addr": res}));
+            if (isHashZero(res)) {
+                http_res.status(404).end(JSON.stringify({"error": "name not registred"}));
+            } else {
+                http_res.end(JSON.stringify({"name": req.params.name,"addr": res}));
+            }
         });
     });
-    app.get("/owner/:name", function(req, http_res) {
+    app.get("/name/:name/owner", function(req, http_res) {
         reg.owner(req.params.name, function(err, res) {
-            http_res.end(JSON.stringify({"owner": res}));
+            if (isHashZero(res)) {
+                http_res.status(404).end(JSON.stringify({"error": "name not registred"}));
+            } else {
+                http_res.end(JSON.stringify({"name": req.params.name,"owner": res}));
+            }
+            //http_res.end(JSON.stringify({"name": req.params.name,"owner": res}));
+        });
+    });
+    app.get("/addr/:addr", function(req, http_res) {
+        if (!req.params.addr.startsWith("0x"))
+            req.params.addr = "0x" + req.params.addr;
+        reg.name(req.params.addr, function(err, res) {
+            var b = new Buffer(res.substr(2, res.indexOf("000")-2), 'hex');
+            http_res.end(JSON.stringify({"name": b.toString()}));
         });
     });
     app.post("/name/:name", function(req, http_res) {
@@ -127,8 +146,7 @@ function startServer() {
         }
         console.log("Got reg request (" + req.params.name + " -> " + req.body.addr + ") from " + req.body.owner);        
         reg.addr(req.params.name, function(err, res) {
-            if (res == "0x" || res == "0x0000000000000000000000000000000000000000") {
-                console.log("Remaing gaz: " + getRemainingGaz());
+            if (isHashZero(res)) {
                 unlockAccount();
                 reg.reserveFor.sendTransaction(req.params.name, req.body.owner, req.body.addr, {
                     from: coinbase,

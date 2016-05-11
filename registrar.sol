@@ -85,7 +85,7 @@ contract GlobalRegistrar is Registrar {
   function addr(bytes32 _name) constant returns (address) { return m_toRecord[_name].primary; }
   function register(bytes32 _name) constant returns (address) { return m_toRecord[_name].subRegistrar; }
   function content(bytes32 _name) constant returns (bytes32) { return m_toRecord[_name].content; }
-  function name(address _owner) constant returns (bytes32 o_name) { return m_toName[_owner]; }
+  function name(address _a) constant returns (bytes32 o_name) { return m_toName[_a]; }
 
   mapping (address => bytes32) m_toName;
   mapping (bytes32 => Record) m_toRecord;
