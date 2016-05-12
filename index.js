@@ -13,7 +13,7 @@ console.log(coinbase);
 var balance = web3.eth.getBalance(coinbase);
 console.log(balance.toString(10));
 
-var REG_ADDR = "0xa2c1a3c75249c89dfc32169d707744fd3648823d";
+var REG_ADDR = "0x3ad65ea5003b5a83faec9e6eea15f0b57aca61fe";
 var REG_ABI = [{"constant":true,"inputs":[{"name":"_owner","type":"address"}],"name":"name","outputs":[{"name":"o_name","type":"bytes32"}],"type":"function"},{"constant":true,"inputs":[{"name":"_name","type":"bytes32"}],"name":"owner","outputs":[{"name":"","type":"address"}],"type":"function"},{"constant":true,"inputs":[{"name":"_name","type":"bytes32"}],"name":"content","outputs":[{"name":"","type":"bytes32"}],"type":"function"},{"constant":true,"inputs":[{"name":"_name","type":"bytes32"}],"name":"addr","outputs":[{"name":"","type":"address"}],"type":"function"},{"constant":false,"inputs":[{"name":"_name","type":"bytes32"}],"name":"reserve","outputs":[],"type":"function"},{"constant":true,"inputs":[{"name":"_name","type":"bytes32"}],"name":"subRegistrar","outputs":[{"name":"o_subRegistrar","type":"address"}],"type":"function"},{"constant":false,"inputs":[{"name":"_name","type":"bytes32"},{"name":"_owner","type":"address"},{"name":"_a","type":"address"}],"name":"reserveFor","outputs":[],"type":"function"},{"constant":false,"inputs":[{"name":"_name","type":"bytes32"},{"name":"_newOwner","type":"address"}],"name":"transfer","outputs":[],"type":"function"},{"constant":false,"inputs":[{"name":"_name","type":"bytes32"},{"name":"_registrar","type":"address"}],"name":"setSubRegistrar","outputs":[],"type":"function"},{"constant":false,"inputs":[],"name":"Registrar","outputs":[],"type":"function"},{"constant":false,"inputs":[{"name":"_name","type":"bytes32"},{"name":"_a","type":"address"},{"name":"_primary","type":"bool"}],"name":"setAddress","outputs":[],"type":"function"},{"constant":false,"inputs":[{"name":"_name","type":"bytes32"},{"name":"_content","type":"bytes32"}],"name":"setContent","outputs":[],"type":"function"},{"constant":false,"inputs":[{"name":"_name","type":"bytes32"}],"name":"disown","outputs":[],"type":"function"},{"constant":true,"inputs":[{"name":"_name","type":"bytes32"}],"name":"register","outputs":[{"name":"","type":"address"}],"type":"function"},{"anonymous":false,"inputs":[{"indexed":true,"name":"name","type":"bytes32"}],"name":"Changed","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"name","type":"bytes32"},{"indexed":true,"name":"addr","type":"address"}],"name":"PrimaryChanged","type":"event"}];
 
 var account;
@@ -145,8 +145,9 @@ function startServer() {
             return;
         }
         console.log("Got reg request (" + req.params.name + " -> " + req.body.addr + ") from " + req.body.owner);        
-        reg.addr(req.params.name, function(err, res) {
-            if (isHashZero(res)) {
+        reg.owner(req.params.name, function(err, owner) {
+            if (isHashZero(owner)) {
+                console.log("Remaing gaz: " + getRemainingGaz());
                 unlockAccount();
                 reg.reserveFor.sendTransaction(req.params.name, req.body.owner, req.body.addr, {
                     from: coinbase,
@@ -159,7 +160,17 @@ function startServer() {
                     }
                 });
             } else {
-                http_res.status(403).end();
+                if (owner == req.body.owner) {
+                    reg.addr(req.params.name, function(err, addr) {
+                        if (addr == req.body.addr) {
+                            http_res.end(JSON.stringify({"success": true}));
+                        } else {
+                            http_res.status(403).end(JSON.stringify({"success": false, "owner": owner, "addr": addr}));
+                        }
+                    });
+                } else {
+                    http_res.status(403).end(JSON.stringify({"success": false, "owner": owner}));
+                }
             }
         });
     });
