@@ -82,7 +82,6 @@ function initContract() {
             }
             console.log("Contract compiled, instantiating on blockchain...");
             REG_ABI = compiled.GlobalRegistrar.info.abiDefinition;
-            console.log(REG_ABI);
             regContract = web3.eth.contract(REG_ABI);
             waitForGaz(3000000, function(){
                 regContract.new({from: coinbase, data: compiled.GlobalRegistrar.code, gas: 3000000}, function(e, contract){
@@ -105,11 +104,26 @@ function initContract() {
 }
 
 function isHashZero(h) {
-    return h == "0x" || h == "0x0000000000000000000000000000000000000000";
+    return h == "0x" || h == "0x0" || h == "0x0000000000000000000000000000000000000000";
 }
 
 function parseString(s) {
     return new Buffer(s.substr(2, s.indexOf("000")-2), 'hex').toString();
+}
+function formatAddress(s) {
+    if (s) {
+        try {
+            if (s.startsWith("ring:"))
+                s = s.substr(5);
+            if (!s.startsWith("0x"))
+                s = "0x" + s;
+            var n = new BigNumber(s);
+            if (n == 0)
+                return undefined;
+            return web3.toHex(n);
+        } catch (err) {}
+    }
+    return undefined;
 }
 
 function startServer() {
@@ -137,33 +151,37 @@ function startServer() {
         });
     });
     app.get("/addr/:addr", function(req, http_res) {
-        if (!req.params.addr.startsWith("0x"))
-            req.params.addr = "0x" + req.params.addr;
-        reg.name(req.params.addr, function(err, res) {
+        var addr = formatAddress(req.params.addr);
+        if (!addr) {
+            console.log("Error parsing input address");
+            http_res.status(400).end(JSON.stringify({"success": false}));
+            return;
+        }
+        reg.name(addr, function(err, res) {
             http_res.end(JSON.stringify({"name": parseString(res)}));
         });
     });
     app.post("/name/:name", function(req, http_res) {
+        var addr = formatAddress(req.body.addr);
+        if (!addr) {
+            console.log("Error parsing input address");
+            http_res.status(400).end(JSON.stringify({"success": false}));
+            return;
+        }
         try {
-            req.body.addr = new BigNumber(req.body.addr);
-            req.body.owner = new BigNumber(req.body.owner);
+            req.body.owner = formatAddress(req.body.owner);
         } catch (err) {
             console.log("Error parsing input: " + err);
-            http_res.status(400).end(err);
+            http_res.status(400).end(JSON.stringify({"success": false, "error": err}));
             return;
         }
-        if (!req.body.addr || !req.body.owner) {
-            http_res.status(400).end(err);
-            return;
-        }
-        console.log("Got reg request (" + req.params.name + " -> " + req.body.addr.toString(16) + ") from " + req.body.owner.toString(16));
+        console.log("Got reg request (" + req.params.name + " -> " + addr + ") from " + req.body.owner);
 
         reg.owner(req.params.name, function(err, owner) {
-            owner = new BigNumber(owner);
             if (owner == 0) {
                 console.log("Remaing gaz: " + getRemainingGaz());
                 unlockAccount();
-                reg.reserveFor.sendTransaction(req.params.name, req.body.owner, req.body.addr, {
+                reg.reserveFor.sendTransaction(req.params.name, req.body.owner, addr, {
                     from: coinbase,
                     gas: 3000000
                 }, function(terr, reg_c) {
@@ -173,15 +191,23 @@ function startServer() {
                     } else {
                         console.log("Transaction sent " + reg_c);
                         reg.PrimaryChanged({"address": coinbase}, function(error, result) {
-                            var name = parseString(result.args.name);
-                            var addr = new BigNumber(result.args.addr);
-                            var name_owner = new BigNumber(result.args.owner);
-                            console.log("PrimaryChanged for " + name_owner.toString(16) + " : " + name + " -> " + addr.toString(16));
-                            if (name != req.params.name || addr.toString(16) != req.body.addr.toString(16) || name_owner.toString(16) != req.body.owner.toString(16) || error) {
+                            if (error) {
                                 console.log(error);
                                 http_res.status(403).end(JSON.stringify({"success": false}));
+                                return;
                             }
-                            else {
+                            var name = parseString(result.args.name);
+                            var name_addr = web3.toHex(new BigNumber(result.args.addr));
+                            if (result.args.owner != req.body.owner) {
+                                console.log("Owner not matching");
+                                http_res.status(403).end(JSON.stringify({"success": false}));
+                            } else if (name != req.params.name) {
+                                console.log("Name not matching");
+                                http_res.status(403).end(JSON.stringify({"success": false}));
+                            } else if (name_addr != addr) {
+                                console.log("Address not matching");
+                                http_res.status(403).end(JSON.stringify({"success": false}));
+                            } else {
                                 console.log(result);
                                 http_res.end(JSON.stringify({"success": true}));
                             }
@@ -189,12 +215,9 @@ function startServer() {
                     }
                 });
             } else {
-                console.log(owner.toString(16) + " / " + req.body.owner.toString(16));
-                if (owner.toString(16) == req.body.owner.toString(16)) {
-                    reg.addr(req.params.name, function(err, addr) {
-                        addr = new BigNumber(addr);
-                        console.log(addr.toString(16) + " / " + req.body.addr.toString(16));
-                        if (addr.toString(16) == req.body.addr.toString(16)) {
+                if (owner == req.body.owner) {
+                    reg.addr(req.params.name, function(err, reg_addr) {
+                        if (reg_addr == addr) {
                             http_res.end(JSON.stringify({"success": true}));
                         } else {
                             http_res.status(403).end(JSON.stringify({"success": false, "owner": owner, "addr": addr}));
