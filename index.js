@@ -2,7 +2,7 @@
 var connect = require('connect');
 var express = require('express');
 var bodyParser = require('body-parser');
-
+var BigNumber = require('bignumber.js');
 var fs = require('fs');
 var http = require('http');
 var Web3 = require('web3');
@@ -13,8 +13,8 @@ console.log(coinbase);
 var balance = web3.eth.getBalance(coinbase);
 console.log(balance.toString(10));
 
-var REG_ADDR = "0x3ad65ea5003b5a83faec9e6eea15f0b57aca61fe";
-var REG_ABI = [{"constant":true,"inputs":[{"name":"_owner","type":"address"}],"name":"name","outputs":[{"name":"o_name","type":"bytes32"}],"type":"function"},{"constant":true,"inputs":[{"name":"_name","type":"bytes32"}],"name":"owner","outputs":[{"name":"","type":"address"}],"type":"function"},{"constant":true,"inputs":[{"name":"_name","type":"bytes32"}],"name":"content","outputs":[{"name":"","type":"bytes32"}],"type":"function"},{"constant":true,"inputs":[{"name":"_name","type":"bytes32"}],"name":"addr","outputs":[{"name":"","type":"address"}],"type":"function"},{"constant":false,"inputs":[{"name":"_name","type":"bytes32"}],"name":"reserve","outputs":[],"type":"function"},{"constant":true,"inputs":[{"name":"_name","type":"bytes32"}],"name":"subRegistrar","outputs":[{"name":"o_subRegistrar","type":"address"}],"type":"function"},{"constant":false,"inputs":[{"name":"_name","type":"bytes32"},{"name":"_owner","type":"address"},{"name":"_a","type":"address"}],"name":"reserveFor","outputs":[],"type":"function"},{"constant":false,"inputs":[{"name":"_name","type":"bytes32"},{"name":"_newOwner","type":"address"}],"name":"transfer","outputs":[],"type":"function"},{"constant":false,"inputs":[{"name":"_name","type":"bytes32"},{"name":"_registrar","type":"address"}],"name":"setSubRegistrar","outputs":[],"type":"function"},{"constant":false,"inputs":[],"name":"Registrar","outputs":[],"type":"function"},{"constant":false,"inputs":[{"name":"_name","type":"bytes32"},{"name":"_a","type":"address"},{"name":"_primary","type":"bool"}],"name":"setAddress","outputs":[],"type":"function"},{"constant":false,"inputs":[{"name":"_name","type":"bytes32"},{"name":"_content","type":"bytes32"}],"name":"setContent","outputs":[],"type":"function"},{"constant":false,"inputs":[{"name":"_name","type":"bytes32"}],"name":"disown","outputs":[],"type":"function"},{"constant":true,"inputs":[{"name":"_name","type":"bytes32"}],"name":"register","outputs":[{"name":"","type":"address"}],"type":"function"},{"anonymous":false,"inputs":[{"indexed":true,"name":"name","type":"bytes32"}],"name":"Changed","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"name","type":"bytes32"},{"indexed":true,"name":"addr","type":"address"}],"name":"PrimaryChanged","type":"event"}];
+var REG_ADDR = "0x1b364554e859d3277d3477ef6bf21113464e2392";
+var REG_ABI = [{"constant":true,"inputs":[{"name":"_a","type":"address"}],"name":"name","outputs":[{"name":"o_name","type":"bytes32"}],"type":"function"},{"constant":true,"inputs":[{"name":"_name","type":"bytes32"}],"name":"owner","outputs":[{"name":"","type":"address"}],"type":"function"},{"constant":true,"inputs":[{"name":"_name","type":"bytes32"}],"name":"content","outputs":[{"name":"","type":"bytes32"}],"type":"function"},{"constant":true,"inputs":[{"name":"_name","type":"bytes32"}],"name":"addr","outputs":[{"name":"","type":"address"}],"type":"function"},{"constant":false,"inputs":[{"name":"_name","type":"bytes32"}],"name":"reserve","outputs":[],"type":"function"},{"constant":true,"inputs":[{"name":"_name","type":"bytes32"}],"name":"subRegistrar","outputs":[{"name":"o_subRegistrar","type":"address"}],"type":"function"},{"constant":false,"inputs":[{"name":"_name","type":"bytes32"},{"name":"_owner","type":"address"},{"name":"_a","type":"address"}],"name":"reserveFor","outputs":[],"type":"function"},{"constant":false,"inputs":[{"name":"_name","type":"bytes32"},{"name":"_newOwner","type":"address"}],"name":"transfer","outputs":[],"type":"function"},{"constant":false,"inputs":[{"name":"_name","type":"bytes32"},{"name":"_registrar","type":"address"}],"name":"setSubRegistrar","outputs":[],"type":"function"},{"constant":false,"inputs":[],"name":"Registrar","outputs":[],"type":"function"},{"constant":false,"inputs":[{"name":"_name","type":"bytes32"},{"name":"_a","type":"address"},{"name":"_primary","type":"bool"}],"name":"setAddress","outputs":[],"type":"function"},{"constant":false,"inputs":[{"name":"_name","type":"bytes32"},{"name":"_content","type":"bytes32"}],"name":"setContent","outputs":[],"type":"function"},{"constant":false,"inputs":[{"name":"_name","type":"bytes32"}],"name":"disown","outputs":[],"type":"function"},{"constant":true,"inputs":[{"name":"_name","type":"bytes32"}],"name":"register","outputs":[{"name":"","type":"address"}],"type":"function"},{"anonymous":false,"inputs":[{"indexed":true,"name":"name","type":"bytes32"}],"name":"Changed","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"name","type":"bytes32"},{"indexed":true,"name":"addr","type":"address"},{"indexed":false,"name":"owner","type":"address"}],"name":"PrimaryChanged","type":"event"}];
 
 var account;
 var regContract;
@@ -37,10 +37,10 @@ function waitForGaz(want, cb) {
         var g = getRemainingGaz();
         if (g >= want) {
             //web3.miner.stop();
-            console.error("Mining finished ! Now having " + g + " gaz.");
+            console.log("Mining finished ! Now having " + g + " gaz.");
             cb();
         } else {
-            console.error("Waiting for " + (want - g) + " gaz to be mined...");
+            console.log("Waiting for " + (want - g) + " gaz to be mined...");
             setTimeout(timeout, 2500);
         }
     }
@@ -82,6 +82,7 @@ function initContract() {
             }
             console.log("Contract compiled, instantiating on blockchain...");
             REG_ABI = compiled.GlobalRegistrar.info.abiDefinition;
+            console.log(REG_ABI);
             regContract = web3.eth.contract(REG_ABI);
             waitForGaz(3000000, function(){
                 regContract.new({from: coinbase, data: compiled.GlobalRegistrar.code, gas: 3000000}, function(e, contract){
@@ -105,6 +106,10 @@ function initContract() {
 
 function isHashZero(h) {
     return h == "0x" || h == "0x0000000000000000000000000000000000000000";
+}
+
+function parseString(s) {
+    return new Buffer(s.substr(2, s.indexOf("000")-2), 'hex').toString();
 }
 
 function startServer() {
@@ -135,18 +140,27 @@ function startServer() {
         if (!req.params.addr.startsWith("0x"))
             req.params.addr = "0x" + req.params.addr;
         reg.name(req.params.addr, function(err, res) {
-            var b = new Buffer(res.substr(2, res.indexOf("000")-2), 'hex');
-            http_res.end(JSON.stringify({"name": b.toString()}));
+            http_res.end(JSON.stringify({"name": parseString(res)}));
         });
     });
     app.post("/name/:name", function(req, http_res) {
-        if (!req.body.addr || !req.body.owner) {
-            http_res.status(400).end();
+        try {
+            req.body.addr = new BigNumber(req.body.addr);
+            req.body.owner = new BigNumber(req.body.owner);
+        } catch (err) {
+            console.log("Error parsing input: " + err);
+            http_res.status(400).end(err);
             return;
         }
-        console.log("Got reg request (" + req.params.name + " -> " + req.body.addr + ") from " + req.body.owner);        
+        if (!req.body.addr || !req.body.owner) {
+            http_res.status(400).end(err);
+            return;
+        }
+        console.log("Got reg request (" + req.params.name + " -> " + req.body.addr.toString(16) + ") from " + req.body.owner.toString(16));
+
         reg.owner(req.params.name, function(err, owner) {
-            if (isHashZero(owner)) {
+            owner = new BigNumber(owner);
+            if (owner == 0) {
                 console.log("Remaing gaz: " + getRemainingGaz());
                 unlockAccount();
                 reg.reserveFor.sendTransaction(req.params.name, req.body.owner, req.body.addr, {
@@ -154,15 +168,33 @@ function startServer() {
                     gas: 3000000
                 }, function(terr, reg_c) {
                     if (terr) {
+                        console.log("Transaction error " + JSON.stringify(terr));
                         http_res.end(JSON.stringify(terr));
                     } else {
-                        http_res.end(JSON.stringify({"success": true}));
+                        console.log("Transaction sent " + reg_c);
+                        reg.PrimaryChanged({"address": coinbase}, function(error, result) {
+                            var name = parseString(result.args.name);
+                            var addr = new BigNumber(result.args.addr);
+                            var name_owner = new BigNumber(result.args.owner);
+                            console.log("PrimaryChanged for " + name_owner.toString(16) + " : " + name + " -> " + addr.toString(16));
+                            if (name != req.params.name || addr.toString(16) != req.body.addr.toString(16) || name_owner.toString(16) != req.body.owner.toString(16) || error) {
+                                console.log(error);
+                                http_res.status(403).end(JSON.stringify({"success": false}));
+                            }
+                            else {
+                                console.log(result);
+                                http_res.end(JSON.stringify({"success": true}));
+                            }
+                        });
                     }
                 });
             } else {
-                if (owner == req.body.owner) {
+                console.log(owner.toString(16) + " / " + req.body.owner.toString(16));
+                if (owner.toString(16) == req.body.owner.toString(16)) {
                     reg.addr(req.params.name, function(err, addr) {
-                        if (addr == req.body.addr) {
+                        addr = new BigNumber(addr);
+                        console.log(addr.toString(16) + " / " + req.body.addr.toString(16));
+                        if (addr.toString(16) == req.body.addr.toString(16)) {
                             http_res.end(JSON.stringify({"success": true}));
                         } else {
                             http_res.status(403).end(JSON.stringify({"success": false, "owner": owner, "addr": addr}));

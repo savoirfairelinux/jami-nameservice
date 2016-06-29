@@ -1,5 +1,3 @@
-import "owned";
-
 contract NameRegister {
   function addr(bytes32 _name) constant returns (address o_owner) {}
   function name(address _owner) constant returns (bytes32 o_name) {}
@@ -7,7 +5,7 @@ contract NameRegister {
 
 contract Registrar is NameRegister {
   event Changed(bytes32 indexed name);
-  event PrimaryChanged(bytes32 indexed name, address indexed addr);
+  event PrimaryChanged(bytes32 indexed name, address indexed addr, address owner);
 
   function owner(bytes32 _name) constant returns (address o_owner) {}
   function addr(bytes32 _name) constant returns (address o_address) {}
@@ -42,7 +40,7 @@ contract GlobalRegistrar is Registrar {
       m_toRecord[_name].primary = _a;
       m_toName[_a] = _name;
       Changed(_name);
-      PrimaryChanged(_name, _a);
+      PrimaryChanged(_name, _a, _owner);
     }
   }
 
@@ -56,7 +54,7 @@ contract GlobalRegistrar is Registrar {
   function disown(bytes32 _name) onlyrecordowner(_name) {
     if (m_toName[m_toRecord[_name].primary] == _name)
     {
-      PrimaryChanged(_name, m_toRecord[_name].primary);
+      PrimaryChanged(_name, m_toRecord[_name].primary, m_toRecord[_name].owner);
       m_toName[m_toRecord[_name].primary] = "";
     }
     delete m_toRecord[_name];
@@ -67,7 +65,7 @@ contract GlobalRegistrar is Registrar {
     m_toRecord[_name].primary = _a;
     if (_primary)
     {
-      PrimaryChanged(_name, _a);
+      PrimaryChanged(_name, _a, m_toRecord[_name].owner);
       m_toName[_a] = _name;
     }
     Changed(_name);
