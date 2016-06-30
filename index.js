@@ -108,8 +108,9 @@ function isHashZero(h) {
 }
 
 function parseString(s) {
-    return new Buffer(s.substr(2, s.indexOf("000")-2), 'hex').toString();
+    return web3.toUtf8(s);
 }
+
 function formatAddress(s) {
     if (s) {
         try {
@@ -158,7 +159,11 @@ function startServer() {
             return;
         }
         reg.name(addr, function(err, res) {
-            http_res.end(JSON.stringify({"name": parseString(res)}));
+            var name = parseString(res);
+            if (name)
+                http_res.end(JSON.stringify({"name": parseString(res)}));
+            else
+                http_res.status(404).end(JSON.stringify({"error": "address not registred"}));
         });
     });
     app.post("/name/:name", function(req, http_res) {
@@ -190,7 +195,8 @@ function startServer() {
                         http_res.end(JSON.stringify(terr));
                     } else {
                         console.log("Transaction sent " + reg_c);
-                        reg.PrimaryChanged({"address": coinbase}, function(error, result) {
+                        var watcher = reg.PrimaryChanged({"address": coinbase}, function(error, result) {
+                            watcher.stopWatching();
                             if (error) {
                                 console.log(error);
                                 http_res.status(403).end(JSON.stringify({"success": false}));
