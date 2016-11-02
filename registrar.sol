@@ -44,7 +44,7 @@ contract GlobalRegistrar is Registrar {
     }
   }
 
-  modifier onlyrecordowner(bytes32 _name) { if (m_toRecord[_name].owner == msg.sender) _ }
+  modifier onlyrecordowner(bytes32 _name) { if (m_toRecord[_name].owner == msg.sender) _; }
 
   function transfer(bytes32 _name, address _newOwner) onlyrecordowner(_name) {
     m_toRecord[_name].owner = _newOwner;
