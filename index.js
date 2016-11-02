@@ -108,7 +108,7 @@ function isHashZero(h) {
 }
 
 function parseString(s) {
-    return web3.toUtf8(s);
+    return s ? web3.toUtf8(s) : s;
 }
 
 function formatAddress(s) {
