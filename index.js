@@ -133,6 +133,7 @@ function startServer() {
     app.disable('x-powered-by');
     app.use(bodyParser.json());
     app.get("/name/:name", function(req, http_res) {
+        http_res.setHeader('Content-Type', 'application/json');
         reg.addr(req.params.name, function(err, res) {
             if (isHashZero(res)) {
                 http_res.status(404).end(JSON.stringify({"error": "name not registred"}));
@@ -142,6 +143,7 @@ function startServer() {
         });
     });
     app.get("/name/:name/owner", function(req, http_res) {
+        http_res.setHeader('Content-Type', 'application/json');
         reg.owner(req.params.name, function(err, res) {
             if (isHashZero(res)) {
                 http_res.status(404).end(JSON.stringify({"error": "name not registred"}));
@@ -152,6 +154,7 @@ function startServer() {
         });
     });
     app.get("/addr/:addr", function(req, http_res) {
+        http_res.setHeader('Content-Type', 'application/json');
         var addr = formatAddress(req.params.addr);
         if (!addr) {
             console.log("Error parsing input address");
@@ -161,12 +164,13 @@ function startServer() {
         reg.name(addr, function(err, res) {
             var name = parseString(res);
             if (name)
-                http_res.end(JSON.stringify({"name": parseString(res)}));
+                http_res.end(JSON.stringify({"name": name}));
             else
                 http_res.status(404).end(JSON.stringify({"error": "address not registred"}));
         });
     });
     app.post("/name/:name", function(req, http_res) {
+        http_res.setHeader('Content-Type', 'application/json');
         var addr = formatAddress(req.body.addr);
         if (!addr) {
             console.log("Error parsing input address");
