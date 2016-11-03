@@ -7,6 +7,27 @@ var fs = require('fs');
 var http = require('http');
 var Web3 = require('web3');
 var web3 = new Web3();
+
+Object.getPrototypeOf(web3.eth).awaitConsensus = function(txhash, mined_cb) {
+    ethP = this;
+    filter = this.filter('latest');         // XXX make async
+    var tries = 5;
+    filter.watch(function(error, result) {
+        if (error)
+            console.log("watch error: " + error);
+        if (result)
+            console.log("watch result: " + result);
+        var receipt = ethP.getTransactionReceipt(txhash);
+        if (receipt && receipt.transactionHash == txhash) {
+            console.log(receipt);
+            filter.stopWatching();
+            mined_cb();
+        } else if (!--tries) {
+            mined_cb("Transaction timeout..");
+        }
+    });
+}
+
 web3.setProvider(new web3.providers.HttpProvider('http://localhost:8545'));
 var coinbase = web3.eth.coinbase;
 console.log(coinbase);
@@ -199,28 +220,29 @@ function startServer() {
                         http_res.end(JSON.stringify(terr));
                     } else {
                         console.log("Transaction sent " + reg_c);
-                        var watcher = reg.PrimaryChanged({"address": coinbase}, function(error, result) {
-                            watcher.stopWatching();
+                        web3.eth.awaitConsensus(reg_c, function(error) {
                             if (error) {
                                 console.log(error);
                                 http_res.status(403).end(JSON.stringify({"success": false}));
                                 return;
                             }
-                            var name = parseString(result.args.name);
-                            var name_addr = web3.toHex(new BigNumber(result.args.addr));
-                            if (result.args.owner != req.body.owner) {
-                                console.log("Owner not matching");
-                                http_res.status(403).end(JSON.stringify({"success": false}));
-                            } else if (name != req.params.name) {
-                                console.log("Name not matching");
-                                http_res.status(403).end(JSON.stringify({"success": false}));
-                            } else if (name_addr != addr) {
-                                console.log("Address not matching");
-                                http_res.status(403).end(JSON.stringify({"success": false}));
-                            } else {
-                                console.log(result);
-                                http_res.end(JSON.stringify({"success": true}));
-                            }
+                            reg.addr(req.params.name, function(err, reg_addr) {
+                                //console.log(reg_c + "Found address " + reg_addr);
+                                if (reg_addr != addr) {
+                                    console.log(reg_c + "Address not matching");
+                                    http_res.status(403).end(JSON.stringify({"success": false}));
+                                } else {
+                                    reg.owner(req.params.name, function(err, reg_owner) {
+                                        //console.log(reg_c + "Found owner " + reg_owner);
+                                        if (reg_owner != req.body.owner) {
+                                            console.log(reg_c + "Owner not matching: requested:" + req.body.owner + " actual:" + reg_owner);
+                                            http_res.status(403).end(JSON.stringify({"success": false}));
+                                        } else {
+                                            http_res.end(JSON.stringify({"success": true}));
+                                        }
+                                    });
+                                }
+                            });
                         });
                     }
                 });
