@@ -239,7 +239,7 @@ function startServer() {
             }
         });
     });
-    http.createServer(app).listen(3000);
+    http.createServer(app).listen(80);
 }
 
 unlockAccount();
