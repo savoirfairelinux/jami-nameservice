@@ -10,13 +10,11 @@ var web3 = new Web3();
 
 Object.getPrototypeOf(web3.eth).awaitConsensus = function(txhash, mined_cb) {
     ethP = this;
-    filter = this.filter('latest');         // XXX make async
     var tries = 5;
+    filter = this.filter('latest');
     filter.watch(function(error, result) {
         if (error)
             console.log("watch error: " + error);
-        if (result)
-            console.log("watch result: " + result);
         var receipt = ethP.getTransactionReceipt(txhash);
         if (receipt && receipt.transactionHash == txhash) {
             console.log(receipt);
@@ -34,6 +32,7 @@ console.log(coinbase);
 var balance = web3.eth.getBalance(coinbase);
 console.log(balance.toString(10));
 
+var REG_ADDR_FILE = "contractAddress.txt";
 var REG_ADDR = "0x1b364554e859d3277d3477ef6bf21113464e2392";
 var REG_ABI = [{"constant":true,"inputs":[{"name":"_a","type":"address"}],"name":"name","outputs":[{"name":"o_name","type":"bytes32"}],"type":"function"},{"constant":true,"inputs":[{"name":"_name","type":"bytes32"}],"name":"owner","outputs":[{"name":"","type":"address"}],"type":"function"},{"constant":true,"inputs":[{"name":"_name","type":"bytes32"}],"name":"content","outputs":[{"name":"","type":"bytes32"}],"type":"function"},{"constant":true,"inputs":[{"name":"_name","type":"bytes32"}],"name":"addr","outputs":[{"name":"","type":"address"}],"type":"function"},{"constant":false,"inputs":[{"name":"_name","type":"bytes32"}],"name":"reserve","outputs":[],"type":"function"},{"constant":true,"inputs":[{"name":"_name","type":"bytes32"}],"name":"subRegistrar","outputs":[{"name":"o_subRegistrar","type":"address"}],"type":"function"},{"constant":false,"inputs":[{"name":"_name","type":"bytes32"},{"name":"_owner","type":"address"},{"name":"_a","type":"address"}],"name":"reserveFor","outputs":[],"type":"function"},{"constant":false,"inputs":[{"name":"_name","type":"bytes32"},{"name":"_newOwner","type":"address"}],"name":"transfer","outputs":[],"type":"function"},{"constant":false,"inputs":[{"name":"_name","type":"bytes32"},{"name":"_registrar","type":"address"}],"name":"setSubRegistrar","outputs":[],"type":"function"},{"constant":false,"inputs":[],"name":"Registrar","outputs":[],"type":"function"},{"constant":false,"inputs":[{"name":"_name","type":"bytes32"},{"name":"_a","type":"address"},{"name":"_primary","type":"bool"}],"name":"setAddress","outputs":[],"type":"function"},{"constant":false,"inputs":[{"name":"_name","type":"bytes32"},{"name":"_content","type":"bytes32"}],"name":"setContent","outputs":[],"type":"function"},{"constant":false,"inputs":[{"name":"_name","type":"bytes32"}],"name":"disown","outputs":[],"type":"function"},{"constant":true,"inputs":[{"name":"_name","type":"bytes32"}],"name":"register","outputs":[{"name":"","type":"address"}],"type":"function"},{"anonymous":false,"inputs":[{"indexed":true,"name":"name","type":"bytes32"}],"name":"Changed","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"name","type":"bytes32"},{"indexed":true,"name":"addr","type":"address"},{"indexed":false,"name":"owner","type":"address"}],"name":"PrimaryChanged","type":"event"}];
 
@@ -70,25 +69,32 @@ function waitForGaz(want, cb) {
 }
 
 function loadContract() {
-    console.log("Loading name contract from blockchain at " + REG_ADDR);
-    web3.eth.getCode(REG_ADDR, function(error, result) {
-        //console.log("Contract code at " + REG_ADDR + ": " + result);
-        if (result == "0x") {
-            console.log("Contract not found at " + REG_ADDR);
-            initContract();
+    fs.readFile(REG_ADDR_FILE, function(err, content) {
+        if (!err) {
+            REG_ADDR = content;
         } else {
-            regContract = web3.eth.contract(REG_ABI);
-            regContract.at(REG_ADDR, function(err, result) {
-                console.log("Contract found and loaded from " + REG_ADDR);
-                if(!err) {
-                    reg = result;
-                    startServer();
-                }
-                else {
-                    console.error("err: " + err);
-                }
-            });
+            console.log("Can't read contract address: " + err);
         }
+        console.log("Loading name contract from blockchain at " + REG_ADDR);
+        web3.eth.getCode(REG_ADDR, function(error, result) {
+            //console.log("Contract code at " + REG_ADDR + ": " + result);
+            if (result == "0x") {
+                console.log("Contract not found at " + REG_ADDR);
+                initContract();
+            } else {
+                regContract = web3.eth.contract(REG_ABI);
+                regContract.at(REG_ADDR, function(err, result) {
+                    console.log("Contract found and loaded from " + REG_ADDR);
+                    if(!err) {
+                        reg = result;
+                        startServer();
+                    }
+                    else {
+                        console.error("err: " + err);
+                    }
+                });
+            }
+        });
     });
 }
 
@@ -112,6 +118,7 @@ function initContract() {
                         } else {
                             console.log("Contract mined! Address: " + contract.address);
                             REG_ADDR = contract.address;
+                            fs.writeFile(REG_ADDR_FILE, REG_ADDR);
                             reg = contract;
                             startServer();
                         }
