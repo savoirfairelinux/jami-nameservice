@@ -17,7 +17,6 @@ Object.getPrototypeOf(web3.eth).awaitConsensus = function(txhash, mined_cb) {
             console.log("watch error: " + error);
         var receipt = ethP.getTransactionReceipt(txhash);
         if (receipt && receipt.transactionHash == txhash) {
-            console.log(receipt);
             filter.stopWatching();
             mined_cb();
         } else if (!--tries) {
@@ -235,6 +234,7 @@ function startServer() {
                                 http_res.status(403).end(JSON.stringify({"success": false}));
                                 return;
                             }
+                            console.log("Ended registration for " + req.params.name + " -> " + addr);
                             reg.addr(req.params.name, function(err, reg_addr) {
                                 //console.log(reg_c + "Found address " + reg_addr);
                                 if (reg_addr != addr) {
