@@ -131,7 +131,7 @@ function initContract() {
 }
 
 function isHashZero(h) {
-    return h == "0x" || h == "0x0" || h == "0x0000000000000000000000000000000000000000";
+    return !h || h == "0x" || h == "0x0" || h == "0x0000000000000000000000000000000000000000";
 }
 
 function parseString(s) {
@@ -161,6 +161,8 @@ function startServer() {
     app.get("/name/:name", function(req, http_res) {
         http_res.setHeader('Content-Type', 'application/json');
         reg.addr(req.params.name, function(err, res) {
+            if (err)
+                console.log("Name lookup error: " + err);
             if (isHashZero(res)) {
                 http_res.status(404).end(JSON.stringify({"error": "name not registred"}));
             } else {
@@ -171,6 +173,8 @@ function startServer() {
     app.get("/name/:name/owner", function(req, http_res) {
         http_res.setHeader('Content-Type', 'application/json');
         reg.owner(req.params.name, function(err, res) {
+            if (err)
+                console.log("Owner lookup error: " + err);
             if (isHashZero(res)) {
                 http_res.status(404).end(JSON.stringify({"error": "name not registred"}));
             } else {
@@ -188,6 +192,8 @@ function startServer() {
             return;
         }
         reg.name(addr, function(err, res) {
+            if (err)
+                console.log("Address lookup error: " + err);
             var name = parseString(res);
             if (name)
                 http_res.end(JSON.stringify({"name": name}));
