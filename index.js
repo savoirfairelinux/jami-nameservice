@@ -11,7 +11,7 @@ var web3 = new Web3();
 Object.getPrototypeOf(web3.eth).awaitConsensus = function(txhash, mined_cb) {
     ethP = this;
     var tries = 5;
-    filter = this.filter('latest');
+    var filter = this.filter('latest');
     filter.watch(function(error, result) {
         if (error)
             console.log("watch error: " + error);
