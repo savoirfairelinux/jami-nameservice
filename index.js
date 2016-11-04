@@ -207,6 +207,8 @@ function startServer() {
         }
         try {
             req.body.owner = formatAddress(req.body.owner);
+            if (!req.body.owner)
+                throw "no owner";
         } catch (err) {
             console.log("Error parsing input: " + err);
             http_res.status(400).end(JSON.stringify({"success": false, "error": err}));
