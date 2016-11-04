@@ -145,10 +145,9 @@ function formatAddress(s) {
                 s = s.substr(5);
             if (!s.startsWith("0x"))
                 s = "0x" + s;
-            var n = new BigNumber(s);
-            if (n == 0)
+            if (new BigNumber(s) == 0)
                 return undefined;
-            return web3.toHex(n);
+            return s;
         } catch (err) {}
     }
     return undefined;
