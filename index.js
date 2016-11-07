@@ -169,122 +169,165 @@ function startServer() {
     var app = express();
     app.disable('x-powered-by');
     app.use(bodyParser.json());
+
+    // Register name lookup handler
     app.get("/name/:name", function(req, http_res) {
         http_res.setHeader('Content-Type', 'application/json');
-        reg.addr(req.params.name, function(err, res) {
-            if (err)
-                console.log("Name lookup error: " + err);
-            if (isHashZero(res)) {
-                http_res.status(404).end(JSON.stringify({"error": "name not registred"}));
-            } else {
-                http_res.end(JSON.stringify({"name": req.params.name,"addr": res}));
-            }
-        });
+        try {
+            reg.addr(req.params.name, function(err, res) {
+                try {
+                    if (err)
+                        console.log("Name lookup error: " + err);
+                    if (isHashZero(res)) {
+                        http_res.status(404).end(JSON.stringify({"error": "name not registred"}));
+                    } else {
+                        http_res.end(JSON.stringify({"name": req.params.name,"addr": res}));
+                    }
+                } catch (err) {
+                    console.log("Name lookup exception: " + err);
+                    http_res.status(500).end(JSON.stringify({"error": "server error"}));
+                }
+            });
+        } catch (err) {
+            console.log("Name lookup exception: " + err);
+            http_res.status(500).end(JSON.stringify({"error": "server error"}));
+        }
     });
+
+    // Register owner lookup handler
     app.get("/name/:name/owner", function(req, http_res) {
         http_res.setHeader('Content-Type', 'application/json');
-        reg.owner(req.params.name, function(err, res) {
-            if (err)
-                console.log("Owner lookup error: " + err);
-            if (isHashZero(res)) {
-                http_res.status(404).end(JSON.stringify({"error": "name not registred"}));
-            } else {
-                http_res.end(JSON.stringify({"name": req.params.name,"owner": res}));
-            }
-            //http_res.end(JSON.stringify({"name": req.params.name,"owner": res}));
-        });
+        try {
+            reg.owner(req.params.name, function(err, res) {
+                try {
+                    if (err)
+                        console.log("Owner lookup error: " + err);
+                    if (isHashZero(res)) {
+                        http_res.status(404).end(JSON.stringify({"error": "name not registred"}));
+                    } else {
+                        http_res.end(JSON.stringify({"name": req.params.name,"owner": res}));
+                    }
+                } catch (err) {
+                    console.log("Owner lookup exception: " + err);
+                    http_res.status(500).end(JSON.stringify({"error": "server error"}));
+                }
+                //http_res.end(JSON.stringify({"name": req.params.name,"owner": res}));
+            });
+        } catch (err) {
+            console.log("Owner lookup exception: " + err);
+            http_res.status(500).end(JSON.stringify({"error": "server error"}));
+        }
     });
+
+    // Register address lookup handler
     app.get("/addr/:addr", function(req, http_res) {
         http_res.setHeader('Content-Type', 'application/json');
-        var addr = formatAddress(req.params.addr);
-        if (!addr) {
-            console.log("Error parsing input address");
-            http_res.status(400).end(JSON.stringify({"success": false}));
-            return;
+        try {
+            var addr = formatAddress(req.params.addr);
+            if (!addr) {
+                console.log("Error parsing input address");
+                http_res.status(400).end(JSON.stringify({"success": false}));
+                return;
+            }
+            reg.name(addr, function(err, res) {
+                try {
+                    if (err)
+                        console.log("Address lookup error: " + err);
+                    var name = parseString(res);
+                    if (name)
+                        http_res.end(JSON.stringify({"name": name}));
+                    else
+                        http_res.status(404).end(JSON.stringify({"error": "address not registred"}));
+                } catch (err) {
+                    console.log("Address lookup exception: " + err);
+                    http_res.status(500).end(JSON.stringify({"error": "server error"}));
+                }
+            });
+        } catch (err) {
+            console.log("Address lookup exception: " + err);
+            http_res.status(500).end(JSON.stringify({"error": "server error"}));
         }
-        reg.name(addr, function(err, res) {
-            if (err)
-                console.log("Address lookup error: " + err);
-            var name = parseString(res);
-            if (name)
-                http_res.end(JSON.stringify({"name": name}));
-            else
-                http_res.status(404).end(JSON.stringify({"error": "address not registred"}));
-        });
     });
+
+    // Register name registration handler
     app.post("/name/:name", function(req, http_res) {
         http_res.setHeader('Content-Type', 'application/json');
-        var addr = formatAddress(req.body.addr);
-        if (!addr) {
-            console.log("Error parsing input address");
-            http_res.status(400).end(JSON.stringify({"success": false}));
-            return;
-        }
         try {
-            req.body.owner = formatAddress(req.body.owner);
-            if (!req.body.owner)
-                throw "no owner";
-        } catch (err) {
-            console.log("Error parsing input: " + err);
-            http_res.status(400).end(JSON.stringify({"success": false, "error": err}));
-            return;
-        }
-        console.log("Got reg request (" + req.params.name + " -> " + addr + ") from " + req.body.owner);
+            var addr = formatAddress(req.body.addr);
+            if (!addr) {
+                console.log("Error parsing input address");
+                http_res.status(400).end(JSON.stringify({"success": false}));
+                return;
+            }
+            try {
+                req.body.owner = formatAddress(req.body.owner);
+                if (!req.body.owner)
+                    throw "no owner";
+            } catch (err) {
+                console.log("Error parsing input: " + err);
+                http_res.status(400).end(JSON.stringify({"success": false, "error": err}));
+                return;
+            }
+            console.log("Got reg request (" + req.params.name + " -> " + addr + ") from " + req.body.owner);
 
-        reg.owner(req.params.name, function(err, owner) {
-            if (owner == 0) {
-                console.log("Remaing gaz: " + getRemainingGaz());
-                unlockAccount();
-                reg.reserveFor.sendTransaction(req.params.name, req.body.owner, addr, {
-                    from: coinbase,
-                    gas: 3000000
-                }, function(terr, reg_c) {
-                    if (terr) {
-                        console.log("Transaction error " + JSON.stringify(terr));
-                        http_res.end(JSON.stringify(terr));
-                    } else {
-                        console.log("Transaction sent " + reg_c);
-                        web3.eth.awaitConsensus(reg_c, function(error) {
-                            if (error) {
-                                console.log(error);
-                                http_res.status(403).end(JSON.stringify({"success": false}));
-                                return;
-                            }
-                            console.log("Ended registration for " + req.params.name + " -> " + addr);
-                            reg.addr(req.params.name, function(err, reg_addr) {
-                                //console.log(reg_c + "Found address " + reg_addr);
-                                if (reg_addr != addr) {
-                                    console.log(reg_c + "Address not matching");
-                                    http_res.status(403).end(JSON.stringify({"success": false}));
-                                } else {
-                                    reg.owner(req.params.name, function(err, reg_owner) {
-                                        //console.log(reg_c + "Found owner " + reg_owner);
-                                        if (reg_owner != req.body.owner) {
-                                            console.log(reg_c + "Owner not matching: requested:" + req.body.owner + " actual:" + reg_owner);
-                                            http_res.status(403).end(JSON.stringify({"success": false}));
-                                        } else {
-                                            http_res.end(JSON.stringify({"success": true}));
-                                        }
-                                    });
-                                }
-                            });
-                        });
-                    }
-                });
-            } else {
-                if (owner == req.body.owner) {
-                    reg.addr(req.params.name, function(err, reg_addr) {
-                        if (reg_addr == addr) {
-                            http_res.end(JSON.stringify({"success": true}));
+            reg.owner(req.params.name, function(err, owner) {
+                if (owner == 0) {
+                    console.log("Remaing gaz: " + getRemainingGaz());
+                    unlockAccount();
+                    reg.reserveFor.sendTransaction(req.params.name, req.body.owner, addr, {
+                        from: coinbase,
+                        gas: 3000000
+                    }, function(terr, reg_c) {
+                        if (terr) {
+                            console.log("Transaction error " + JSON.stringify(terr));
+                            http_res.end(JSON.stringify(terr));
                         } else {
-                            http_res.status(403).end(JSON.stringify({"success": false, "owner": owner, "addr": addr}));
+                            console.log("Transaction sent " + reg_c);
+                            web3.eth.awaitConsensus(reg_c, function(error) {
+                                if (error) {
+                                    console.log(error);
+                                    http_res.status(403).end(JSON.stringify({"success": false}));
+                                    return;
+                                }
+                                console.log("Ended registration for " + req.params.name + " -> " + addr);
+                                reg.addr(req.params.name, function(err, reg_addr) {
+                                    //console.log(reg_c + "Found address " + reg_addr);
+                                    if (reg_addr != addr) {
+                                        console.log(reg_c + "Address not matching");
+                                        http_res.status(403).end(JSON.stringify({"success": false}));
+                                    } else {
+                                        reg.owner(req.params.name, function(err, reg_owner) {
+                                            //console.log(reg_c + "Found owner " + reg_owner);
+                                            if (reg_owner != req.body.owner) {
+                                                console.log(reg_c + "Owner not matching: requested:" + req.body.owner + " actual:" + reg_owner);
+                                                http_res.status(403).end(JSON.stringify({"success": false}));
+                                            } else {
+                                                http_res.end(JSON.stringify({"success": true}));
+                                            }
+                                        });
+                                    }
+                                });
+                            });
                         }
                     });
                 } else {
-                    http_res.status(403).end(JSON.stringify({"success": false, "owner": owner}));
+                    if (owner == req.body.owner) {
+                        reg.addr(req.params.name, function(err, reg_addr) {
+                            if (reg_addr == addr) {
+                                http_res.end(JSON.stringify({"success": true}));
+                            } else {
+                                http_res.status(403).end(JSON.stringify({"success": false, "owner": owner, "addr": addr}));
+                            }
+                        });
+                    } else {
+                        http_res.status(403).end(JSON.stringify({"success": false, "owner": owner}));
+                    }
                 }
-            }
-        });
+            });
+        } catch (err) {
+            console.log("Address registration exception: " + err);
+            http_res.status(500).end(JSON.stringify({"error": "server error"}));
+        }
     });
     http.createServer(app).listen(80);
 }
