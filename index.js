@@ -35,6 +35,7 @@ var REG_ADDR_FILE = "contractAddress.txt";
 var REG_ABI_FILE = "contractABI.json";
 var REG_ADDR = "0xe53cb2ace8707526a5050bec7bcf979c57f8b44f";
 var REG_ABI = [{"constant":true,"inputs":[{"name":"_a","type":"address"}],"name":"name","outputs":[{"name":"o_name","type":"bytes32"}],"payable":false,"type":"function"},{"constant":true,"inputs":[{"name":"_name","type":"bytes32"}],"name":"owner","outputs":[{"name":"","type":"address"}],"payable":false,"type":"function"},{"constant":true,"inputs":[{"name":"_name","type":"bytes32"}],"name":"content","outputs":[{"name":"","type":"bytes32"}],"payable":false,"type":"function"},{"constant":true,"inputs":[{"name":"_name","type":"bytes32"}],"name":"addr","outputs":[{"name":"","type":"address"}],"payable":false,"type":"function"},{"constant":true,"inputs":[{"name":"_name","type":"bytes32"}],"name":"subRegistrar","outputs":[{"name":"o_subRegistrar","type":"address"}],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"_name","type":"bytes32"},{"name":"_a","type":"address"}],"name":"reserve","outputs":[],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"_name","type":"bytes32"},{"name":"_owner","type":"address"},{"name":"_a","type":"address"}],"name":"reserveFor","outputs":[],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"_name","type":"bytes32"},{"name":"_newOwner","type":"address"}],"name":"transfer","outputs":[],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"_name","type":"bytes32"},{"name":"_registrar","type":"address"}],"name":"setSubRegistrar","outputs":[],"payable":false,"type":"function"},{"constant":false,"inputs":[],"name":"Registrar","outputs":[],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"_name","type":"bytes32"},{"name":"_a","type":"address"},{"name":"_primary","type":"bool"}],"name":"setAddress","outputs":[],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"_name","type":"bytes32"},{"name":"_content","type":"bytes32"}],"name":"setContent","outputs":[],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"_name","type":"bytes32"}],"name":"disown","outputs":[],"payable":false,"type":"function"},{"constant":true,"inputs":[{"name":"_name","type":"bytes32"}],"name":"register","outputs":[{"name":"","type":"address"}],"payable":false,"type":"function"},{"anonymous":false,"inputs":[{"indexed":true,"name":"name","type":"bytes32"}],"name":"Changed","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"name","type":"bytes32"},{"indexed":true,"name":"addr","type":"address"},{"indexed":false,"name":"owner","type":"address"}],"name":"PrimaryChanged","type":"event"}];
+var NAME_VALIDATOR = new RegExp('^[a-z0-9-_]{3,32}$');
 
 var account;
 var regContract;
@@ -139,6 +140,14 @@ function initContract() {
             });
         });
     });
+}
+
+function checkName(name) {
+    try {
+        return Boolean(name.match(NAME_VALIDATOR));
+    } catch (e) {
+        return false;
+    }
 }
 
 function isHashZero(h) {
@@ -266,6 +275,10 @@ function startServer() {
             } catch (err) {
                 console.log("Error parsing input: " + err);
                 http_res.status(400).end(JSON.stringify({"success": false, "error": err}));
+                return;
+            }
+            if (!checkName(req.params.name)) {
+                http_res.status(400).end(JSON.stringify({"success": false, "error": "invalid name"}));
                 return;
             }
             console.log("Got reg request (" + req.params.name + " -> " + addr + ") from " + req.body.owner);
