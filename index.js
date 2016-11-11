@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+'use strict';
+
 var connect = require('connect');
 var express = require('express');
 var bodyParser = require('body-parser');
@@ -9,7 +11,7 @@ var Web3 = require('web3');
 var web3 = new Web3();
 
 Object.getPrototypeOf(web3.eth).awaitConsensus = function(txhash, mined_cb) {
-    ethP = this;
+    var ethP = this;
     var tries = 5;
     var filter = this.filter('latest');
     filter.watch(function(error, result) {
@@ -178,10 +180,13 @@ function startServer() {
     var app = express();
     app.disable('x-powered-by');
     app.use(bodyParser.json());
+    app.use(function(req, res, next) {
+      res.setHeader('Content-Type', 'application/json');
+      next();
+    });
 
     // Register name lookup handler
     app.get("/name/:name", function(req, http_res) {
-        http_res.setHeader('Content-Type', 'application/json');
         try {
             reg.addr(req.params.name, function(err, res) {
                 try {
@@ -205,7 +210,6 @@ function startServer() {
 
     // Register owner lookup handler
     app.get("/name/:name/owner", function(req, http_res) {
-        http_res.setHeader('Content-Type', 'application/json');
         try {
             reg.owner(req.params.name, function(err, res) {
                 try {
@@ -230,7 +234,6 @@ function startServer() {
 
     // Register address lookup handler
     app.get("/addr/:addr", function(req, http_res) {
-        http_res.setHeader('Content-Type', 'application/json');
         try {
             var addr = formatAddress(req.params.addr);
             if (!addr) {
@@ -260,7 +263,6 @@ function startServer() {
 
     // Register name registration handler
     app.post("/name/:name", function(req, http_res) {
-        http_res.setHeader('Content-Type', 'application/json');
         try {
             var addr = formatAddress(req.body.addr);
             if (!addr) {
