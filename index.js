@@ -287,42 +287,41 @@ function startServer() {
 
             reg.owner(req.params.name, function(err, owner) {
                 if (owner == 0) {
-                    console.log("Remaing gaz: " + getRemainingGaz());
-                    unlockAccount();
-                    reg.reserveFor.sendTransaction(req.params.name, req.body.owner, addr, {
-                        from: coinbase,
-                        gas: 3000000
-                    }, function(terr, reg_c) {
-                        if (terr) {
-                            console.log("Transaction error " + JSON.stringify(terr));
-                            http_res.end(JSON.stringify(terr));
-                        } else {
-                            console.log("Transaction sent " + reg_c);
-                            web3.eth.awaitConsensus(reg_c, function(error) {
-                                if (error) {
-                                    console.log(error);
-                                    http_res.status(403).end(JSON.stringify({"success": false}));
-                                    return;
-                                }
-                                console.log("Ended registration for " + req.params.name + " -> " + addr);
-                                reg.addr(req.params.name, function(err, reg_addr) {
-                                    //console.log(reg_c + "Found address " + reg_addr);
-                                    if (reg_addr != addr) {
-                                        console.log(reg_c + "Address not matching");
-                                        http_res.status(403).end(JSON.stringify({"success": false}));
+                    reg.name(addr, function(err, res) {
+                        try {
+                            if (err)
+                                console.log("Error checking name: " + err);
+                            var name = parseString(res);
+                            if (name) {
+                                console.log("Address " + addr + " already registered with name: " + name);
+                                http_res.status(403).end(JSON.stringify({"success": false, "name": name, "addr": addr}));
+                            } else {
+                                console.log("Remaing gaz: " + getRemainingGaz());
+                                unlockAccount();
+                                reg.reserveFor.sendTransaction(req.params.name, req.body.owner, addr, {
+                                    from: coinbase,
+                                    gas: 3000000
+                                }, function(terr, reg_c) {
+                                    if (terr) {
+                                        console.log("Transaction error " + JSON.stringify(terr));
+                                        http_res.end(JSON.stringify(terr));
                                     } else {
-                                        reg.owner(req.params.name, function(err, reg_owner) {
-                                            //console.log(reg_c + "Found owner " + reg_owner);
-                                            if (reg_owner != req.body.owner) {
-                                                console.log(reg_c + "Owner not matching: requested:" + req.body.owner + " actual:" + reg_owner);
-                                                http_res.status(403).end(JSON.stringify({"success": false}));
-                                            } else {
-                                                http_res.end(JSON.stringify({"success": true}));
+                                        console.log("Transaction sent " + reg_c);
+                                        // Send answer as soon as the transaction is queued
+                                        http_res.end(JSON.stringify({"success": true}));
+                                        web3.eth.awaitConsensus(reg_c, function(error) {
+                                            if (error) {
+                                                console.log(error);
+                                                return;
                                             }
+                                            console.log("Ended registration for " + req.params.name + " -> " + addr);
                                         });
                                     }
                                 });
-                            });
+                            }
+                        } catch (err) {
+                            console.log("Address registration exception: " + err);
+                            http_res.status(500).end(JSON.stringify({"error": "server error"}));
                         }
                     });
                 } else {
