@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2016 Savoir-faire Linux Inc.
+ *  Copyright (c) 2016-2017 Savoir-faire Linux Inc.
  *
  *  Author: Adrien Béraud <adrien.beraud@savoirfairelinux.com>
  *
@@ -14,7 +14,7 @@
  *  GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *  along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 'use strict';
 
@@ -49,13 +49,13 @@ console.log(coinbase);
 var balance = web3.eth.getBalance(coinbase);
 console.log(balance.toString(10));
 
-var REG_ADDR_FILE = "contractAddress.txt";
-var REG_ABI_FILE = "contractABI.json";
-var REG_ADDR = "0xe53cb2ace8707526a5050bec7bcf979c57f8b44f";
-var REG_ABI = [{"constant":true,"inputs":[{"name":"_a","type":"address"}],"name":"name","outputs":[{"name":"o_name","type":"bytes32"}],"payable":false,"type":"function"},{"constant":true,"inputs":[{"name":"_name","type":"bytes32"}],"name":"owner","outputs":[{"name":"","type":"address"}],"payable":false,"type":"function"},{"constant":true,"inputs":[{"name":"_name","type":"bytes32"}],"name":"content","outputs":[{"name":"","type":"bytes32"}],"payable":false,"type":"function"},{"constant":true,"inputs":[{"name":"_name","type":"bytes32"}],"name":"addr","outputs":[{"name":"","type":"address"}],"payable":false,"type":"function"},{"constant":true,"inputs":[{"name":"_name","type":"bytes32"}],"name":"subRegistrar","outputs":[{"name":"o_subRegistrar","type":"address"}],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"_name","type":"bytes32"},{"name":"_a","type":"address"}],"name":"reserve","outputs":[],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"_name","type":"bytes32"},{"name":"_owner","type":"address"},{"name":"_a","type":"address"}],"name":"reserveFor","outputs":[],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"_name","type":"bytes32"},{"name":"_newOwner","type":"address"}],"name":"transfer","outputs":[],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"_name","type":"bytes32"},{"name":"_registrar","type":"address"}],"name":"setSubRegistrar","outputs":[],"payable":false,"type":"function"},{"constant":false,"inputs":[],"name":"Registrar","outputs":[],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"_name","type":"bytes32"},{"name":"_a","type":"address"},{"name":"_primary","type":"bool"}],"name":"setAddress","outputs":[],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"_name","type":"bytes32"},{"name":"_content","type":"bytes32"}],"name":"setContent","outputs":[],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"_name","type":"bytes32"}],"name":"disown","outputs":[],"payable":false,"type":"function"},{"constant":true,"inputs":[{"name":"_name","type":"bytes32"}],"name":"register","outputs":[{"name":"","type":"address"}],"payable":false,"type":"function"},{"anonymous":false,"inputs":[{"indexed":true,"name":"name","type":"bytes32"}],"name":"Changed","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"name","type":"bytes32"},{"indexed":true,"name":"addr","type":"address"},{"indexed":false,"name":"owner","type":"address"}],"name":"PrimaryChanged","type":"event"}];
+var REG_FILE = __dirname + "/contract/registrar.out.json";
+var REG_ADDR_FILE = __dirname + "/contractAddress.txt";
 var NAME_VALIDATOR = new RegExp('^[a-z0-9-_]{3,32}$');
 
 var account;
+var regAddress = "0xe53cb2ace8707526a5050bec7bcf979c57f8b44f";
+var regABI;
 var regContract;
 var reg;
 
@@ -92,26 +92,26 @@ function loadContract() {
         if (err) {
             console.log("Can't read contract address: " + err);
         } else {
-            REG_ADDR = String(content);
+            regAddress = String(content);
         }
-        fs.readFile(REG_ABI_FILE, function(err, abi_str){
+        fs.readFile(REG_FILE, function(err, data){
             if (err)
                 console.log("Can't read contract ABI: " + err);
-            else
-                REG_ABI = JSON.parse(abi_str);
-            console.log("Loading name contract from blockchain at " + REG_ADDR);
-            web3.eth.getCode(REG_ADDR, function(error, result) {
+            else {
+                var REG =  JSON.parse(data);
+                regABI = JSON.parse(REG.contracts.registrar.GlobalRegistrar.abi);
+            }
+            console.log("Loading name contract from blockchain at " + regAddress);
+            web3.eth.getCode(regAddress, function(error, result) {
                 if (error)
                     console.log("Error getting contract code: " + error);
-                /*else
-                    console.log("Contract code at " + REG_ADDR + ": " + result);*/
                 if (!result || result == "0x") {
-                    console.log("Contract not found at " + REG_ADDR);
+                    console.log("Contract not found at " + regAddress);
                     initContract();
                 } else {
-                    regContract = web3.eth.contract(REG_ABI);
-                    regContract.at(REG_ADDR, function(err, result) {
-                        console.log("Contract found and loaded from " + REG_ADDR);
+                    regContract = web3.eth.contract(regABI);
+                    regContract.at(regAddress, function(err, result) {
+                        console.log("Contract found and loaded from " + regAddress);
                         if(!err) {
                             reg = result;
                             startServer();
@@ -127,34 +127,30 @@ function loadContract() {
 }
 
 function initContract() {
-    fs.readFile( __dirname + '/registrar.sol', function(err, data) {
+    fs.readFile(REG_FILE, function(err, data) {
         if (err)
             throw err;
-        web3.eth.compile.solidity(String(data), function(err, compiled) {
-            if (err) {
-                console.log("Can't compile contract :" + err);
-                throw err;
-            }
-            console.log("Contract compiled, instantiating on blockchain...");
-            REG_ABI = compiled.GlobalRegistrar.info.abiDefinition;
-            fs.writeFile(REG_ABI_FILE, JSON.stringify(REG_ABI));
-            regContract = web3.eth.contract(REG_ABI);
-            waitForGaz(3000000, function(){
-                regContract.new({from: coinbase, data: compiled.GlobalRegistrar.code, gas: 3000000}, function(e, contract){
-                    if(!e) {
-                        if(!contract.address) {
-                            console.log("Contract transaction send: TransactionHash: " + contract.transactionHash + " waiting to be mined...");
-                        } else {
-                            console.log("Contract mined! Address: " + contract.address);
-                            REG_ADDR = contract.address;
-                            fs.writeFile(REG_ADDR_FILE, REG_ADDR);
-                            reg = contract;
-                            startServer();
-                        }
+        var REG =  JSON.parse(data);
+        regABI = JSON.parse(REG.contracts.registrar.GlobalRegistrar.abi);
+        console.log(regABI);
+        regContract = web3.eth.contract(regABI);
+        waitForGaz(3000000, function(){
+            regContract.new({ from: coinbase,
+                              data: '0x'+REG.contracts.registrar.GlobalRegistrar.evm.bytecode.object,
+                              gas: 3000000 }, function(e, contract) {
+                if(!e) {
+                    if(!contract.address) {
+                        console.log("Contract transaction send: TransactionHash: " + contract.transactionHash + " waiting to be mined...");
                     } else {
-                        console.log(e);
-                    }
-                });
+                        console.log("Contract mined! Address: " + contract.address);
+                        regAddress = contract.address;
+                        fs.writeFile(REG_ADDR_FILE, regAddress);
+                        reg = contract;
+                        startServer();
+                    }
+                } else {
+                    console.log(e);
+                }
             });
         });
     });
