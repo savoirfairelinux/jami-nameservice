@@ -183,7 +183,7 @@ function formatAddress(s) {
                 s = s.substr(5);
             if (!s.startsWith("0x"))
                 s = "0x" + s;
-            if (new BigNumber(s) == 0)
+            if (new BigNumber(s.substr(2), 16) == 0)
                 return undefined;
             return s;
         } catch (err) {}
@@ -299,6 +299,7 @@ function startServer() {
                 http_res.status(400).end(JSON.stringify({"success": false, "error": "invalid name"}));
                 return;
             }
+            var name_hex = '0x' + Buffer.from(req.params.name, 'utf8').toString('hex');
             console.log("Got reg request (" + req.params.name + " -> " + addr + ") from " + req.body.owner);
 
             reg.owner(req.params.name, function(err, owner) {
@@ -314,7 +315,7 @@ function startServer() {
                             } else {
                                 console.log("Remaing gaz: " + getRemainingGaz());
                                 unlockAccount();
-                                reg.reserveFor.sendTransaction(req.params.name, req.body.owner, addr, {
+                                reg.reserveFor.sendTransaction(name_hex, req.body.owner, addr, {
                                     from: coinbase,
                                     gas: 3000000
                                 }, function(terr, reg_c) {
