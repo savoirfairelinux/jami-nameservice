@@ -1,3 +1,4 @@
+pragma solidity ^0.4.10;
 /*
  * Copyright (c) 2014 Gav Wood <g@ethdev.com>
  * Copyright (c) 2016 Savoir-faire Linux Inc.
