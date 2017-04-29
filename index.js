@@ -23,8 +23,10 @@ var bodyParser = require('body-parser');
 var BigNumber = require('bignumber.js');
 var fs = require('fs');
 var http = require('http');
+var https = require('https');
 var Web3 = require('web3');
 var web3 = new Web3();
+var argv = require('minimist')(process.argv.slice(2));
 
 Object.getPrototypeOf(web3.eth).awaitConsensus = function(txhash, mined_cb) {
     var ethP = this;
@@ -185,6 +187,19 @@ function formatAddress(s) {
         } catch (err) {}
     }
     return undefined;
+}
+
+function readCertificateChain(path) {
+    var cert = [];
+    var ca = [];
+    fs.readFileSync(path, 'utf8').split("\n").forEach(function(line) {
+        cert.push(line);
+        if (line.match(/-END CERTIFICATE-/)) {
+            ca.push(cert.join("\n"));
+            cert = [];
+        }
+    });
+    return ca;
 }
 
 function startServer() {
@@ -356,7 +371,23 @@ function startServer() {
             http_res.status(500).end(JSON.stringify({"error": "server error"}));
         }
     });
-    http.createServer(app).listen(80);
+    try {
+        http.createServer(app).listen(80);
+    } catch (err) {
+        console.log("Error starting HTTP server: " + err);
+    }
+    if (argv.https) {
+        try {
+            var options = {
+                key  : fs.readFileSync('/etc/ssl/private/star_ring_cx.key'),
+                cert : fs.readFileSync('/etc/ssl/certs/cert_star_ring_cx.pem'),
+                ca : readCertificateChain('/etc/ssl/certs/chain_star_ring_cx.pem')
+            };
+            https.createServer(options, app).listen(443);
+        } catch (err) {
+            console.log("Error starting HTTPS server: " + err);
+        }
+    }
 }
 
 unlockAccount();

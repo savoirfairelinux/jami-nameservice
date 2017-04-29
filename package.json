@@ -10,6 +10,7 @@
     "web3"        : ">=0.15" ,
     "express"     : ">=4.1.0",
     "body-parser" : ">=1.8.1",
-    "bignumber.js": ">=2.0.0"
+    "bignumber.js": ">=2.0.0",
+    "minimist"    : ">=1.0.0"
   }
 }
