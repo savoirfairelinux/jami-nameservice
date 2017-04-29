@@ -1,0 +1,14 @@
+{
+  "language": "Solidity",
+  "sources": {
+    "registrar": {
+      "urls":["registrar.sol"]
+    }
+  },
+  "settings": {
+    "optimizer": {
+      "enabled": true,
+      "runs": 500
+    }
+  }
+}
