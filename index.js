@@ -168,6 +168,10 @@ function checkName(name) {
     }
 }
 
+function formatName(name) {
+    return '0x' + new Buffer(name, 'utf8').toString('hex');
+}
+
 function isHashZero(h) {
     return !h || h == "0x" || h == "0x0" || h == "0x0000000000000000000000000000000000000000";
 }
@@ -183,7 +187,7 @@ function formatAddress(s) {
                 s = s.substr(5);
             if (!s.startsWith("0x"))
                 s = "0x" + s;
-            if (new BigNumber(s) == 0)
+            if (new BigNumber(s.substr(2), 16) == 0)
                 return undefined;
             return s;
         } catch (err) {}
@@ -204,7 +208,7 @@ function startServer() {
     // Register name lookup handler
     app.get("/name/:name", function(req, http_res) {
         try {
-            reg.addr(req.params.name, function(err, res) {
+            reg.addr(formatName(req.params.name), function(err, res) {
                 try {
                     if (err)
                         console.log("Name lookup error: " + err);
@@ -314,7 +318,7 @@ function startServer() {
                             } else {
                                 console.log("Remaing gaz: " + getRemainingGaz());
                                 unlockAccount();
-                                reg.reserveFor.sendTransaction(req.params.name, req.body.owner, addr, {
+                                reg.reserveFor.sendTransaction(formatName(req.params.name), req.body.owner, addr, {
                                     from: coinbase,
                                     gas: 3000000
                                 }, function(terr, reg_c) {
