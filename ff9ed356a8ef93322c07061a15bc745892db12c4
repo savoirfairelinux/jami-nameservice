@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "5aaae553_4eb667de",
+        "filename": "genesis.json",
+        "patchSetId": 3
+      },
+      "lineNbr": 9,
+      "author": {
+        "id": 3
+      },
+      "writtenOn": "2017-05-04T13:37:58Z",
+      "side": 1,
+      "message": "hmm... was 0x8000000 \u003d 134217728\n\nVery different. what\u0027s the reason?",
+      "range": {
+        "startLine": 9,
+        "startChar": 17,
+        "endLine": 9,
+        "endChar": 24
+      },
+      "revId": "ff9ed356a8ef93322c07061a15bc745892db12c4",
+      "serverId": "1e26b4c1-6b8c-47ff-9df7-501b633d3b5a",
+      "unresolved": false
+    }
+  ]
+}
