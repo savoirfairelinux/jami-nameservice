@@ -101,7 +101,7 @@ function loadContract() {
                 console.log("Can't read contract ABI: " + err);
             else {
                 var REG =  JSON.parse(data);
-                regABI = JSON.parse(REG.contracts.registrar.GlobalRegistrar.abi);
+                regABI = REG.contracts.registrar.GlobalRegistrar.abi;
             }
             console.log("Loading name contract from blockchain at " + regAddress);
             web3.eth.getCode(regAddress, function(error, result) {
