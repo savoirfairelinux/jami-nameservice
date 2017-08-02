@@ -57,7 +57,7 @@ var NAME_VALIDATOR = new RegExp('^[a-z0-9-_]{3,32}$');
 
 var account;
 var regAddress = "0xe53cb2ace8707526a5050bec7bcf979c57f8b44f";
-var regABI;
+var regData;
 var regContract;
 var reg;
 
@@ -97,12 +97,12 @@ function loadContract() {
             regAddress = String(content).trim();
         }
         fs.readFile(REG_FILE, function(err, data){
-            if (err)
+            if (err) {
                 console.log("Can't read contract ABI: " + err);
-            else {
-                var REG =  JSON.parse(data);
-                regABI = REG.contracts.registrar.GlobalRegistrar.abi;
+                throw err;
             }
+            regData = JSON.parse(data).contracts.registrar.GlobalRegistrar;
+            regContract = web3.eth.contract(regData.abi);
             console.log("Loading name contract from blockchain at " + regAddress);
             web3.eth.getCode(regAddress, function(error, result) {
                 if (error)
@@ -111,7 +111,6 @@ function loadContract() {
                     console.log("Contract not found at " + regAddress);
                     initContract();
                 } else {
-                    regContract = web3.eth.contract(regABI);
                     regContract.at(regAddress, function(err, result) {
                         console.log("Contract found and loaded from " + regAddress);
                         if(!err) {
@@ -129,31 +128,23 @@ function loadContract() {
 }
 
 function initContract() {
-    fs.readFile(REG_FILE, function(err, data) {
-        if (err)
-            throw err;
-        var REG =  JSON.parse(data);
-        regABI = JSON.parse(REG.contracts.registrar.GlobalRegistrar.abi);
-        console.log(regABI);
-        regContract = web3.eth.contract(regABI);
-        waitForGaz(3000000, function(){
-            regContract.new({ from: coinbase,
-                              data: '0x'+REG.contracts.registrar.GlobalRegistrar.evm.bytecode.object,
-                              gas: 3000000 }, function(e, contract) {
-                if(!e) {
-                    if(!contract.address) {
-                        console.log("Contract transaction send: TransactionHash: " + contract.transactionHash + " waiting to be mined...");
-                    } else {
-                        console.log("Contract mined! Address: " + contract.address);
-                        regAddress = contract.address;
-                        fs.writeFile(REG_ADDR_FILE, regAddress);
-                        reg = contract;
-                        startServer();
-                    }
+    waitForGaz(3000000, function(){
+        regContract.new({ from: coinbase,
+                          data: '0x'+regData.evm.bytecode.object,
+                          gas: 3000000 }, function(e, contract) {
+            if(!e) {
+                if(!contract.address) {
+                    console.log("Contract transaction send: TransactionHash: " + contract.transactionHash + " waiting to be mined...");
                 } else {
-                    console.log(e);
-                }
-            });
+                    console.log("Contract mined! Address: " + contract.address);
+                    regAddress = contract.address;
+                    fs.writeFile(REG_ADDR_FILE, regAddress);
+                    reg = contract;
+                    startServer();
+                }
+            } else {
+                console.log(e);
+            }
         });
     });
 }
