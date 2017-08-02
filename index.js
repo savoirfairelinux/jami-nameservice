@@ -94,7 +94,7 @@ function loadContract() {
         if (err) {
             console.log("Can't read contract address: " + err);
         } else {
-            regAddress = String(content);
+            regAddress = String(content).trim();
         }
         fs.readFile(REG_FILE, function(err, data){
             if (err)
@@ -178,8 +178,9 @@ function parseString(s) {
     return s ? web3.toUtf8(s) : s;
 }
 
-function formatAddress(s) {
-    if (s) {
+function formatAddress(address) {
+    if (address) {
+        var s = address.trim();
         try {
             if (s.startsWith("ring:"))
                 s = s.substr(5);
