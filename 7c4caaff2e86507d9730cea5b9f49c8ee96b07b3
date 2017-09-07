@@ -1,0 +1,96 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "9a3d3df0_05be96ff",
+        "filename": "write_names.js",
+        "patchSetId": 1
+      },
+      "lineNbr": 126,
+      "author": {
+        "id": 6
+      },
+      "writtenOn": "2017-09-07T15:56:54Z",
+      "side": 1,
+      "message": "this script should assume the contract is already instantiated. It might simply stop with an error if the contract from contractAddress.txt can\u0027t be loaded.",
+      "range": {
+        "startLine": 106,
+        "startChar": 0,
+        "endLine": 126,
+        "endChar": 1
+      },
+      "revId": "7c4caaff2e86507d9730cea5b9f49c8ee96b07b3",
+      "serverId": "1e26b4c1-6b8c-47ff-9df7-501b633d3b5a",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "9a3d3df0_65cfa2b1",
+        "filename": "write_names.js",
+        "patchSetId": 1
+      },
+      "lineNbr": 245,
+      "author": {
+        "id": 6
+      },
+      "writtenOn": "2017-09-07T15:56:54Z",
+      "side": 1,
+      "message": "allow to pass the filename as an argument to the script",
+      "range": {
+        "startLine": 245,
+        "startChar": 47,
+        "endLine": 245,
+        "endChar": 59
+      },
+      "revId": "7c4caaff2e86507d9730cea5b9f49c8ee96b07b3",
+      "serverId": "1e26b4c1-6b8c-47ff-9df7-501b633d3b5a",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "9a3d3df0_a547ea1c",
+        "filename": "write_names.js",
+        "patchSetId": 1
+      },
+      "lineNbr": 250,
+      "author": {
+        "id": 6
+      },
+      "writtenOn": "2017-09-07T15:56:54Z",
+      "side": 1,
+      "message": "Write this log only when the transaction have actually been mined.",
+      "range": {
+        "startLine": 250,
+        "startChar": 8,
+        "endLine": 250,
+        "endChar": 83
+      },
+      "revId": "7c4caaff2e86507d9730cea5b9f49c8ee96b07b3",
+      "serverId": "1e26b4c1-6b8c-47ff-9df7-501b633d3b5a",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "9a3d3df0_c5c30e89",
+        "filename": "write_names.js",
+        "patchSetId": 1
+      },
+      "lineNbr": 252,
+      "author": {
+        "id": 6
+      },
+      "writtenOn": "2017-09-07T15:56:54Z",
+      "side": 1,
+      "message": "batch insert instead of pushing all the names at once : if there are millions of names it could cause issues. Maybe allow to have up to N pending concurrent transactions. You might add a callback argument to registerName and call it with an optional error argument from the awaitConsensus callback and other \u0027exit\u0027 points (error conditions) of registerName. You can make tests by generating json files with many names using a script. Also add time measurment to the script to allow to allow comparing performance with various strategies/settings.",
+      "range": {
+        "startLine": 248,
+        "startChar": 4,
+        "endLine": 252,
+        "endChar": 6
+      },
+      "revId": "7c4caaff2e86507d9730cea5b9f49c8ee96b07b3",
+      "serverId": "1e26b4c1-6b8c-47ff-9df7-501b633d3b5a",
+      "unresolved": false
+    }
+  ]
+}
