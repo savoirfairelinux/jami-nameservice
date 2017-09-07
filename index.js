@@ -95,6 +95,7 @@ function loadContract() {
             console.log("Can't read contract address: " + err);
         } else {
             regAddress = String(content).trim();
+
         }
         fs.readFile(REG_FILE, function(err, data){
             if (err) {
@@ -103,8 +104,11 @@ function loadContract() {
             }
             regData = JSON.parse(data).contracts.registrar.GlobalRegistrar;
             regContract = web3.eth.contract(regData.abi);
+
             console.log("Loading name contract from blockchain at " + regAddress);
+            console
             web3.eth.getCode(regAddress, function(error, result) {
+
                 if (error)
                     console.log("Error getting contract code: " + error);
                 if (!result || result == "0x") {
