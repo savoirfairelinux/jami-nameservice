@@ -11,8 +11,7 @@ web3.setProvider(new web3.providers.HttpProvider('http://localhost:8545'));
 var REG_ADDR_FILE = "contractAddress.txt";
 var REG_ADDR = "0xe53cb2ace8707526a5050bec7bcf979c57f8b44f";
 var REG_ABI_registerFor = ['bytes32', 'address', 'address'];
-var NAME_MAP = {};
-
+var NAME_LIST = [];
 function readContractAddress() {
     fs.readFile(REG_ADDR_FILE, function(err, content) {
         if (err) {
@@ -41,7 +40,7 @@ function getAllNames() {
                         var p = web3.SolidityCoder.decodeParams(REG_ABI_registerFor, tr.input.substr(10));
                         var n = web3.toUtf8(p[0]);
                         console.log("Entry: " + n + " -> " + p[1] + " " + p[2]);
-                        NAME_MAP[n] = {"addr":p[2], "owner":p[1]};
+                        NAME_LIST.push({"name": n,"addr":p[2], "owner":p[1]});
                     } else {
                         console.log("Wrong contract: " + tr.to + " expected " + REG_ADDR);
                     }
@@ -53,8 +52,8 @@ function getAllNames() {
         if (nextBlock < totalBlocks)
             web3.eth.getBlock(nextBlock++, true, cb);
         if (rem == 0) {
-            console.log("Found " + Object.keys(NAME_MAP).length + " name mappings");
-            fs.writeFile("names.json", JSON.stringify(NAME_MAP));
+            console.log("Found " + NAME_LIST.length + " name mappings");
+            fs.writeFile("names.json", JSON.stringify(NAME_LIST));
         } else if (!error && block && block.transactions.length) {
             console.log("Listing names: " + Math.round(100-100*rem/totalBlocks) + "%, " + rem + " remaining... ");
         }
