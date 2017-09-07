@@ -138,7 +138,7 @@ function initContract() {
                 } else {
                     console.log("Contract mined! Address: " + contract.address);
                     regAddress = contract.address;
-                    fs.writeFile(REG_ADDR_FILE, regAddress);
+                    fs.writeFileSync(REG_ADDR_FILE, regAddress);
                     reg = contract;
                     startServer();
                 }
