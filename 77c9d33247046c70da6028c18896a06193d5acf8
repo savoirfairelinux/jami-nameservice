@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "da5c1566_a8f4e387",
+        "filename": "index.js",
+        "patchSetId": 3
+      },
+      "lineNbr": 109,
+      "author": {
+        "id": 6
+      },
+      "writtenOn": "2018-06-19T04:47:11Z",
+      "side": 1,
+      "message": "?",
+      "range": {
+        "startLine": 109,
+        "startChar": 12,
+        "endLine": 109,
+        "endChar": 19
+      },
+      "revId": "77c9d33247046c70da6028c18896a06193d5acf8",
+      "serverId": "1e26b4c1-6b8c-47ff-9df7-501b633d3b5a",
+      "unresolved": false
+    }
+  ]
+}
