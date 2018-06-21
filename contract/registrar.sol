@@ -44,6 +44,8 @@ contract Registrar is NameRegister {
 
 contract GlobalRegistrar is Registrar {
   struct Record {
+    string publicKey;
+    string signedName;
     address owner;
     address primary;
     address subRegistrar;
@@ -64,10 +66,13 @@ contract GlobalRegistrar is Registrar {
       PrimaryChanged(_name, _a, msg.sender);
     }
   }
-  function reserveFor(bytes32 _name, address _owner, address _a) {
+  function reserveFor(bytes32 _name, address _owner, address _a, string _publickey, string _signedname){
     if (m_toRecord[_name].owner == 0 && m_toName[_a] == 0) {
       m_toRecord[_name].owner = _owner;
       m_toRecord[_name].primary = _a;
+      m_toRecord[_name].publicKey = _publickey;
+      m_toRecord[_name].signedName = _signedname;
+
       m_toName[_a] = _name;
       Changed(_name);
       PrimaryChanged(_name, _a, _owner);
@@ -114,6 +119,8 @@ contract GlobalRegistrar is Registrar {
   function register(bytes32 _name) constant returns (address) { return m_toRecord[_name].subRegistrar; }
   function content(bytes32 _name) constant returns (bytes32) { return m_toRecord[_name].content; }
   function name(address _a) constant returns (bytes32 o_name) { return m_toName[_a]; }
+  function publickey(bytes32 _name) constant returns (string) { return m_toRecord[_name].publicKey; }
+  function signature(bytes32 _name) constant returns (string) { return m_toRecord[_name].signedName; }
 
   mapping (address => bytes32) m_toName;
   mapping (bytes32 => Record) m_toRecord;
