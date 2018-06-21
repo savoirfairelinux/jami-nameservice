@@ -27,6 +27,8 @@ var https = require('https');
 var Web3 = require('web3');
 var web3 = new Web3();
 var argv = require('minimist')(process.argv.slice(2));
+var crypto = require('crypto');
+
 
 Object.getPrototypeOf(web3.eth).awaitConsensus = function(txhash, mined_cb) {
     var ethP = this;
@@ -61,6 +63,14 @@ var regData;
 var regContract;
 var reg;
 
+function verifySignature(name, _publickey, signature){
+    var publicKey = new Buffer(_publickey, 'base64').toString('ascii')
+    var verifier = crypto.createVerify('RSA-SHA512');
+    verifier.update(name);
+    var ver = verifier.verify(publicKey, signature,'base64');
+    return ver;
+}
+
 function unlockAccount() {
     web3.personal.unlockAccount(coinbase, "toto");
 }
@@ -89,7 +99,7 @@ function waitForGaz(want, cb) {
     timeout();
 }
 
-function loadContract() {
+function loadContract(onContractLoaded) {
     fs.readFile(REG_ADDR_FILE, function(err, content) {
         if (err) {
             console.log("Can't read contract address: " + err);
@@ -109,13 +119,13 @@ function loadContract() {
                     console.log("Error getting contract code: " + error);
                 if (!result || result == "0x") {
                     console.log("Contract not found at " + regAddress);
-                    initContract();
+                    initContract(onContractLoaded);
                 } else {
                     regContract.at(regAddress, function(err, result) {
                         console.log("Contract found and loaded from " + regAddress);
                         if(!err) {
                             reg = result;
-                            startServer();
+                            onContractLoaded(reg)
                         }
                         else {
                             console.error("err: " + err);
@@ -127,7 +137,7 @@ function loadContract() {
     });
 }
 
-function initContract() {
+function initContract(onContractInitialized) {
     waitForGaz(3000000, function(){
         regContract.new({ from: coinbase,
                           data: '0x'+regData.evm.bytecode.object,
@@ -140,7 +150,7 @@ function initContract() {
                     regAddress = contract.address;
                     fs.writeFileSync(REG_ADDR_FILE, regAddress);
                     reg = contract;
-                    startServer();
+                    onContractInitialized();
                 }
             } else {
                 console.log(e);
@@ -198,7 +208,7 @@ function readCertificateChain(path) {
     return ca;
 }
 
-function startServer() {
+function startServer(result) {
     console.log("Starting web server");
     var app = express();
     app.disable('x-powered-by');
@@ -218,7 +228,51 @@ function startServer() {
                     if (isHashZero(res)) {
                         http_res.status(404).end(JSON.stringify({"error": "name not registred"}));
                     } else {
-                        http_res.end(JSON.stringify({"name": req.params.name,"addr": res}));
+                        http_res.end(JSON.stringify({"name": req.params.name, "addr": res }));
+                    }
+                } catch (err) {
+                    console.log("Name lookup exception: " + err);
+                    http_res.status(500).end(JSON.stringify({"error": "server error"}));
+                }
+            });
+        } catch (err) {
+            console.log("Name lookup exception: " + err);
+            http_res.status(500).end(JSON.stringify({"error": "server error"}));
+        }
+    });
+
+    app.get("/name/:name/publickey", function(req, http_res) {
+        try {
+            reg.publickey(formatName(req.params.name), function(err, res) {
+                try {
+                    if (err)
+                        console.log("Name lookup error: " + err);
+                    if (isHashZero(res)) {
+                        http_res.status(404).end(JSON.stringify({"error": "name not registred"}));
+                    } else {
+                        http_res.end(JSON.stringify({"name": req.params.name, "publickey": res }));
+                    }
+                } catch (err) {
+                    console.log("Name lookup exception: " + err);
+                    http_res.status(500).end(JSON.stringify({"error": "server error"}));
+                }
+            });
+        } catch (err) {
+            console.log("Name lookup exception: " + err);
+            http_res.status(500).end(JSON.stringify({"error": "server error"}));
+        }
+    });
+
+    app.get("/name/:name/signature", function(req, http_res) {
+        try {
+            reg.signature(formatName(req.params.name), function(err, res) {
+                try {
+                    if (err)
+                        console.log("Name lookup error: " + err);
+                    if (isHashZero(res)) {
+                        http_res.status(404).end(JSON.stringify({"error": "name not registred"}));
+                    } else {
+                        http_res.end(JSON.stringify({"name": req.params.name, "signature": res }));
                     }
                 } catch (err) {
                     console.log("Name lookup exception: " + err);
@@ -241,7 +295,7 @@ function startServer() {
                     if (isHashZero(res)) {
                         http_res.status(404).end(JSON.stringify({"error": "name not registred"}));
                     } else {
-                        http_res.end(JSON.stringify({"name": req.params.name,"owner": res}));
+                        http_res.end(JSON.stringify({"name": req.params.name, "owner": res}));
                     }
                 } catch (err) {
                     console.log("Owner lookup exception: " + err);
@@ -306,8 +360,21 @@ function startServer() {
                 http_res.status(400).end(JSON.stringify({"success": false, "error": "invalid name"}));
                 return;
             }
-            console.log("Got reg request (" + req.params.name + " -> " + addr + ") from " + req.body.owner);
+            if (!req.body.publickey || req.body.publickey == "") {
+                http_res.status(400).end(JSON.stringify({"success": false, "error": "publickey not found or invalid"}));
+                return;
+            }
+            if (!req.body.signature || req.body.signature == "") {
+                http_res.status(400).end(JSON.stringify({"success": false, "error": "signature not found or invalid"}));
+                return;
+            }
 
+            if(!verifySignature(req.params.name, req.body.publickey, req.body.signature)){
+                http_res.status(403).end(JSON.stringify({"success": false, "error": "signature verification failed"}));
+                return;
+            }
+
+            console.log("Got reg request (" + req.params.name + " -> " + addr + ") from " + req.body.owner);
             reg.owner(req.params.name, function(err, owner) {
                 if (owner == 0) {
                     reg.name(addr, function(err, res) {
@@ -321,7 +388,7 @@ function startServer() {
                             } else {
                                 console.log("Remaing gaz: " + getRemainingGaz());
                                 unlockAccount();
-                                reg.reserveFor.sendTransaction(formatName(req.params.name), req.body.owner, addr, {
+                                reg.reserveFor.sendTransaction(formatName(req.params.name), req.body.owner, addr, req.body.publickey, req.body.signature, {
                                     from: coinbase,
                                     gas: 3000000
                                 }, function(terr, reg_c) {
@@ -386,4 +453,4 @@ function startServer() {
 }
 
 unlockAccount();
-loadContract();
+loadContract(startServer);

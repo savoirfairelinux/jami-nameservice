@@ -6,6 +6,7 @@ var web3 = new Web3();
 var path = require('path');
 var fs = require('fs');
 var argv = require('minimist')(process.argv.slice(2));
+var crypto = require('crypto');
 
 if(argv['_'] < 1)
     throw ("Specify Batch Input File as: nodejs " + path.basename(__filename) + " <filename>" );
@@ -21,7 +22,14 @@ var providedPath = String(argv['_'][0])
 batchInputFile = validateFile(providedPath);
 if(!batchInputFile)
     throw "File " + providedPath + " does not exist"
-    
+
+function verifySignature(address, publickey, signature){
+    var publicKey = new Buffer(publickey, 'base64').toString('ascii')
+    var verifier = crypto.createVerify('sha256');
+    verifier.update(address);
+    var ver = verifier.verify(publicKey, signature,'base64');
+    return ver;
+}
 
 
 Object.getPrototypeOf(web3.eth).awaitConsensus = function(txhash, mined_cb) {
@@ -140,11 +148,11 @@ function formatAddress(address) {
     }
     return undefined;
 }
-function registerName(addressparam, nameparam, ownerparam, mined_cb){
+function registerName(addressparam, nameparam, ownerparam, publickey, signature, mined_cb){
     try {
         var addr = formatAddress(addressparam);
         if (!addr) {
-            console.log("Error parsing input address "+ addressparam);
+            console.log("Error parsing input address " + addressparam);
             return;
         }
         try {
@@ -174,7 +182,12 @@ function registerName(addressparam, nameparam, ownerparam, mined_cb){
                         } else {
                             console.log("Remaing gaz: " + getRemainingGaz());
                             unlockAccount();
-                            reg.reserveFor.sendTransaction(formatName(nameparam), ownerparam, addr, {
+                            if (!verifySignature(addr, publickey, signature))
+                            {
+                                console.log("Signature Verification Failed for " + nameparam);
+                                return;
+                            }
+                            reg.reserveFor.sendTransaction(formatName(nameparam), ownerparam, addr, publickey, signature, {
                                 from: coinbase,
                                 gas: 3000000
                             }, function(terr, reg_c) {
@@ -226,11 +239,16 @@ function startWrites(){
     console.log(String(NAME_LIST.length) + " inserts to do");
     //create parallel queue that does 256 registerNames parallely
     var q = async.queue(function(task, callback) {
-        registerName(task['addr'], task['name'], task['owner'], callback);
+        registerName(task['addr'], task['name'], task['owner'], task['publickey'], task['signature'], callback);
     }, 256);
-
+    totalmined = 0
     for (var i = 0; i < NAME_LIST.length; i++) {
-        q.push(NAME_LIST[i], function(c){console.log("Mined registry: "+ c)});
+        function mined(c){
+            console.log("Mined registry: "+ c);
+            totalmined++;
+            console.log("" + (totalmined*100/NAME_LIST.length).toFixed(2) + "% done")
+        }
+        q.push(NAME_LIST[i], mined);
         console.log("Queued " + i);
     }
 }
