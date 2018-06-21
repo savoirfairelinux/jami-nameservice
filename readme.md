@@ -25,7 +25,7 @@ python start_eth_cluster.py
 Finally, make sure you have nodejs and npm install, do:
 ```
 npm install
-sudo nodejs index.js
+sudo node index.js
 ```
 (we need sudo for Express server to listen on port 80)
 
@@ -33,8 +33,15 @@ This will launch the HTTP server used to interface with the nameservice.
 Send a GET request to `name/<username>` to get its Ring ID. Send a POST request to `name/<username>` to register new username-RingID pair.
 
 
+## Batch Operations
+
 Optionally, you can dump all username-RingID pairs to file using:
 ```
-nodejs read_names.js
+node read_names.js
 ```
 This will dump all the username-RingID pairs to `names.json` file.
+
+Conversely, you can read names from a JSON dump and batch register names
+```
+node write_name.js <JSON names dump>
+```
