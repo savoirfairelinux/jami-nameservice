@@ -221,14 +221,40 @@ function startServer(result) {
     // Register name lookup handler
     app.get("/name/:name", function(req, http_res) {
         try {
-            reg.addr(formatName(req.params.name), function(err, res) {
+            reg.addr(formatName(req.params.name), function(err, res_addr) {
                 try {
                     if (err)
                         console.log("Name lookup error: " + err);
-                    if (isHashZero(res)) {
-                        http_res.status(404).end(JSON.stringify({"error": "name not registred"}));
+                    if (isHashZero(res_addr)) {
+                        http_res.status(404).end(JSON.stringify({"error": "name not registered"}));
                     } else {
-                        http_res.end(JSON.stringify({"name": req.params.name, "addr": res }));
+                        reg.publickey(formatName(req.params.name), function(err, res_publickey) {
+                            try {
+                                if (err)
+                                    console.log("Name lookup error: " + err);
+                                if (isHashZero(res_publickey)) {
+                                    http_res.status(404).end(JSON.stringify({"error": "publickey not registered"}));
+                                } else {
+                                    reg.signature(formatName(req.params.name), function(err, res_signature) {
+                                        try {
+                                            if (err)
+                                                console.log("Name lookup error: " + err);
+                                            if (isHashZero(res_signature)) {
+                                                http_res.status(404).end(JSON.stringify({"error": "signature not registered"}));
+                                            } else {
+                                                http_res.end(JSON.stringify({"name": req.params.name, "addr": res_addr, "publickey": res_publickey, "signature": res_signature }));
+                                            }
+                                        } catch (err) {
+                                            console.log("Name lookup exception: " + err);
+                                            http_res.status(500).end(JSON.stringify({"error": "server error"}));
+                                        }
+                                    });
+                                }
+                            } catch (err) {
+                                console.log("Name lookup exception: " + err);
+                                http_res.status(500).end(JSON.stringify({"error": "server error"}));
+                            }
+                        });
                     }
                 } catch (err) {
                     console.log("Name lookup exception: " + err);
@@ -248,7 +274,7 @@ function startServer(result) {
                     if (err)
                         console.log("Name lookup error: " + err);
                     if (isHashZero(res)) {
-                        http_res.status(404).end(JSON.stringify({"error": "name not registred"}));
+                        http_res.status(404).end(JSON.stringify({"error": "name not registered"}));
                     } else {
                         http_res.end(JSON.stringify({"name": req.params.name, "publickey": res }));
                     }
@@ -270,7 +296,7 @@ function startServer(result) {
                     if (err)
                         console.log("Name lookup error: " + err);
                     if (isHashZero(res)) {
-                        http_res.status(404).end(JSON.stringify({"error": "name not registred"}));
+                        http_res.status(404).end(JSON.stringify({"error": "name not registered"}));
                     } else {
                         http_res.end(JSON.stringify({"name": req.params.name, "signature": res }));
                     }
@@ -293,7 +319,7 @@ function startServer(result) {
                     if (err)
                         console.log("Owner lookup error: " + err);
                     if (isHashZero(res)) {
-                        http_res.status(404).end(JSON.stringify({"error": "name not registred"}));
+                        http_res.status(404).end(JSON.stringify({"error": "name not registered"}));
                     } else {
                         http_res.end(JSON.stringify({"name": req.params.name, "owner": res}));
                     }
@@ -326,7 +352,7 @@ function startServer(result) {
                     if (name)
                         http_res.end(JSON.stringify({"name": name}));
                     else
-                        http_res.status(404).end(JSON.stringify({"error": "address not registred"}));
+                        http_res.status(404).end(JSON.stringify({"error": "address not registered"}));
                 } catch (err) {
                     console.log("Address lookup exception: " + err);
                     http_res.status(500).end(JSON.stringify({"error": "server error"}));
