@@ -61,6 +61,8 @@ var regData;
 var regContract;
 var reg;
 
+const cache = {};
+
 function unlockAccount() {
     web3.personal.unlockAccount(coinbase, "toto");
 }
@@ -216,7 +218,12 @@ function startServer() {
                     if (err)
                         console.log("Name lookup error: " + err);
                     if (isHashZero(res)) {
-                        http_res.status(404).end(JSON.stringify({"error": "name not registred"}));
+                        const cachedAddress = cache[req.params.name];
+                        if (cachedAddress != undefined) {
+                            http_res.end(JSON.stringify({"name": req.params.name,"addr": cachedAddress}));
+                        } else {
+                            http_res.status(404).end(JSON.stringify({"error": "name not registred"}));
+                        }
                     } else {
                         http_res.end(JSON.stringify({"name": req.params.name,"addr": res}));
                     }
@@ -331,12 +338,14 @@ function startServer() {
                                     } else {
                                         console.log("Transaction sent " + reg_c);
                                         // Send answer as soon as the transaction is queued
+                                        cache[req.params.name] = addr;
                                         http_res.end(JSON.stringify({"success": true}));
                                         web3.eth.awaitConsensus(reg_c, function(error) {
                                             if (error) {
                                                 console.log(error);
                                                 return;
                                             }
+                                            delete cache[req.params.name];
                                             console.log("Ended registration for " + req.params.name + " -> " + addr);
                                         });
                                     }
