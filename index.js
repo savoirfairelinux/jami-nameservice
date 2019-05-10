@@ -430,7 +430,7 @@ function startServer(result) {
                 http_res.status(400).end(JSON.stringify({"success": false, "error": "invalid name"}));
                 return;
             }
-            if(cache[req.params.name] == undefined){
+            if (req.params.name in cache) {
                 http_res.status(400).end(JSON.stringify({"success":false,"error": "name already registered"}));
                 return;
             }
@@ -454,7 +454,7 @@ function startServer(result) {
                     http_res.status(401).end(JSON.stringify({"success": false, "error": "signature verification failed"}));
                     return;
                 }
-                else{
+                else {
                     publickey = req.body.publickey;
                     signature = req.body.signature;
                 }
