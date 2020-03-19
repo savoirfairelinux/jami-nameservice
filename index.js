@@ -302,7 +302,7 @@ function startServer(result) {
                             }
                     }
                     else{
-                        http_res.status(404).end(JSON.stringify({"error": "name not registered"}));    
+                        http_res.status(404).end(JSON.stringify({"error": "name not registered"}));
                     }
                 }
             });
@@ -545,7 +545,7 @@ function startServer(result) {
 }
 
 if(argv['_'] != 0){
-    loadNames(argv['_']);  
+    loadNames(argv['_']);
 }
 unlockAccount();
 loadContract(startServer);

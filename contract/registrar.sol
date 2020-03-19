@@ -1,4 +1,4 @@
-pragma solidity ^0.5.2;
+pragma solidity >=0.4.22 <0.7.0;
 /*
  * Copyright (c) 2014 Gav Wood <g@ethdev.com>
  * Copyright (c) 2016 Savoir-faire Linux Inc.
@@ -12,10 +12,10 @@ pragma solidity ^0.5.2;
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * copies of the Software, and to permit persons to whom the Software is
  * urnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -25,21 +25,21 @@ pragma solidity ^0.5.2;
  * SOFTWARE.
  */
 
-contract NameRegister {
-  function addr(bytes32 _name) public view returns (address o_owner) {}
-  function name(address _owner) public view returns (bytes32 o_name) {}
+interface NameRegister {
+  function addr(bytes32 _name) view external returns (address o_owner);
+  function name(address _owner) view external returns (bytes32 o_name);
 }
 
-contract Registrar is NameRegister {
+interface Registrar is NameRegister {
   event Changed(bytes32 indexed name);
   event PrimaryChanged(bytes32 indexed name, address indexed addr, address owner);
 
-  function owner(bytes32 _name) public view returns (address o_owner) {}
-  function addr(bytes32 _name) public view returns (address o_address) {}
-  function subRegistrar(bytes32 _name) public view returns (address o_subRegistrar) {}
-  function content(bytes32 _name) public view returns (bytes32 o_content) {}
+  function owner(bytes32 _name) view external returns (address o_owner);
+  function addr(bytes32 _name) view external override(NameRegister) returns (address o_address);
+  function subRegistrar(bytes32 _name) view external returns (address o_subRegistrar);
+  function content(bytes32 _name) view external returns (bytes32 o_content);
 
-  function name(address _owner) public view returns (bytes32 o_name) {}
+  function name(address _owner) view external override(NameRegister) returns (bytes32 o_name);
 }
 
 contract GlobalRegistrar is Registrar {
@@ -111,11 +111,11 @@ contract GlobalRegistrar is Registrar {
     emit Changed(_name);
   }
 
-  function owner(bytes32 _name) public view returns (address) { return m_toRecord[_name].owner; }
-  function addr(bytes32 _name) public view returns (address) { return m_toRecord[_name].primary; }
-  function register(bytes32 _name) public view returns (address) { return m_toRecord[_name].subRegistrar; }
-  function content(bytes32 _name) public view returns (bytes32) { return m_toRecord[_name].content; }
-  function name(address _a) public view returns (bytes32 o_name) { return m_toName[_a]; }
+  function owner(bytes32 _name) public view override(Registrar) returns (address) { return m_toRecord[_name].owner; }
+  function addr(bytes32 _name) public view override(Registrar) returns (address) { return m_toRecord[_name].primary; }
+  function subRegistrar(bytes32 _name) public view override(Registrar) returns (address) { return m_toRecord[_name].subRegistrar; }
+  function content(bytes32 _name) public view override(Registrar) returns (bytes32) { return m_toRecord[_name].content; }
+  function name(address _a) public view override(Registrar) returns (bytes32 o_name) { return m_toName[_a]; }
   function publickey(bytes32 _name) public view returns (string memory) { return m_toRecord[_name].publicKey; }
   function signature(bytes32 _name) public view returns (string memory) { return m_toRecord[_name].signedName; }
 
