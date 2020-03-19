@@ -21,7 +21,6 @@ var providedPath = String(argv['_'][0])
 batchInputFile = validateFile(providedPath);
 if(!batchInputFile)
     throw "File " + providedPath + " does not exist"
-    
 
 
 Object.getPrototypeOf(web3.eth).awaitConsensus = function(txhash, mined_cb) {
@@ -140,7 +139,7 @@ function formatAddress(address) {
     }
     return undefined;
 }
-function registerName(addressparam, nameparam, ownerparam, mined_cb){
+function registerName(addressparam, nameparam, ownerparam, pk, sig, mined_cb){
     try {
         var addr = formatAddress(addressparam);
         if (!addr) {
@@ -174,7 +173,7 @@ function registerName(addressparam, nameparam, ownerparam, mined_cb){
                         } else {
                             console.log("Remaing gaz: " + getRemainingGaz());
                             unlockAccount();
-                            reg.reserveFor.sendTransaction(formatName(nameparam), ownerparam, addr, {
+                            reg.reserveFor.sendTransaction(formatName(nameparam), ownerparam, addr, pk, sig, {
                                 from: coinbase,
                                 gas: 3000000
                             }, function(terr, reg_c) {
@@ -226,7 +225,7 @@ function startWrites(){
     console.log(String(NAME_LIST.length) + " inserts to do");
     //create parallel queue that does 256 registerNames parallely
     var q = async.queue(function(task, callback) {
-        registerName(task['addr'], task['name'], task['owner'], callback);
+        registerName(task['addr'], task['name'], task['owner'], task['publickey'], task['signature'], callback);
     }, 256);
 
     for (var i = 0; i < NAME_LIST.length; i++) {

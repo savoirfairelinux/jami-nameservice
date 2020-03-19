@@ -1,5 +1,4 @@
 #!/usr/bin/env nodejs
-var BigNumber = require('bignumber.js');
 var fs = require('fs');
 var Web3 = require('web3');
 
@@ -10,7 +9,7 @@ web3.setProvider(new web3.providers.HttpProvider('http://localhost:8545'));
 
 var REG_ADDR_FILE = "contractAddress.txt";
 var REG_ADDR = "0xe53cb2ace8707526a5050bec7bcf979c57f8b44f";
-var REG_ABI_registerFor = ['bytes32', 'address', 'address'];
+var REG_ABI_reserveFor = ['bytes32', 'address', 'address', 'string', 'string'];
 var NAME_LIST = [];
 function readContractAddress() {
     fs.readFile(REG_ADDR_FILE, function(err, content) {
@@ -37,10 +36,15 @@ function getAllNames() {
                 try {
                     var tr = block.transactions[t];
                     if (tr.to == REG_ADDR) {
-                        var p = web3.SolidityCoder.decodeParams(REG_ABI_registerFor, tr.input.substr(10));
-                        var n = web3.toUtf8(p[0]);
+                        const p = web3.SolidityCoder.decodeParams(REG_ABI_reserveFor, tr.input.substr(10));
+                        const n = web3.toUtf8(p[0]);
                         console.log("Entry: " + n + " -> " + p[1] + " " + p[2]);
-                        NAME_LIST.push({"name": n,"addr":p[2], "owner":p[1]});
+                        const newObj = {"name": n,"addr":p[2], "owner":p[1]};
+                        if (p[3])
+                            newObj["publickey"] = p[3];
+                        if (p[4])
+                            newObj["signature"] = p[4];
+                        NAME_LIST.push(newObj);
                     } else {
                         console.log("Wrong contract: " + tr.to + " expected " + REG_ADDR);
                     }
