@@ -563,7 +563,7 @@ function startServer(result) {
 }
 
 if(argv['_'] != 0){
-    loadNames(argv['_']);  
+    loadNames(argv['_']);
 }
 unlockAccount();
 loadContract(startServer);
