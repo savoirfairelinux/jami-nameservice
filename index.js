@@ -1,5 +1,6 @@
+#!/usr/bin/env nodejs
 /*
- *  Copyright (c) 2016-2017 Savoir-faire Linux Inc.
+ *  Copyright (c) 2016-2020 Savoir-faire Linux Inc.
  *
  *  Author: Adrien Béraud <adrien.beraud@savoirfairelinux.com>
  *
@@ -33,6 +34,7 @@ const path = require('path');
 //Patch to support caching.
 //map of form {name,address}
 const cache = {};
+const addrCache = {};
 
 function validateFile(filename){
     if ( path.isAbsolute(filename) && fs.existsSync(filename) )
@@ -45,16 +47,16 @@ function validateFile(filename){
 function loadCache(batchInputFile) {
     const NAME_LIST = JSON.parse(fs.readFileSync(batchInputFile, 'utf8'));
     for (const entry of Object.entries(NAME_LIST)) {
-        cache[entry[0]] = entry[1]
+        cache[entry[1]['name']] = entry[1];
+        addrCache[entry[1]['addr']] = entry[1];
     }
+    console.log('Loaded ' + Object.keys(cache).length + ' from cache');
 }
 
-
-
 Object.getPrototypeOf(web3.eth).awaitConsensus = function(txhash, mined_cb) {
-    var ethP = this;
-    var tries = 5;
-    var filter = this.filter('latest');
+    const ethP = this;
+    let tries = 5;
+    let filter = this.filter('latest');
     filter.watch(function(error, result) {
         if (error)
             console.log("watch error: " + error);
@@ -68,22 +70,19 @@ Object.getPrototypeOf(web3.eth).awaitConsensus = function(txhash, mined_cb) {
     });
 }
 
+console.log('Loading...');
 web3.setProvider(new web3.providers.HttpProvider('http://localhost:8545'));
-const coinbase = web3.eth.coinbase;
-console.log(coinbase);
-let balance = web3.eth.getBalance(coinbase);
-console.log(balance.toString(10));
 
 const REG_FILE = __dirname + "/contract/registrar.out.json";
 const REG_ADDR_FILE = __dirname + "/contractAddress.txt";
 const NAME_VALIDATOR = new RegExp('^[a-z0-9-_]{3,32}$');
 
-let account;
+let coinbase;
+let balance;
 let regAddress = "0xe53cb2ace8707526a5050bec7bcf979c57f8b44f";
 let regData;
 let regContract;
 let reg;
-
 
 function loadNames(filename){
     console.log("The cache will be populated with the data from the export file!");
@@ -104,10 +103,6 @@ function verifySignature(name, _publickey, signature){
     verifier.update(name);
     const ver = verifier.verify(publicKey, signature,'base64');
     return ver;
-}
-
-function unlockAccount() {
-    web3.personal.unlockAccount(coinbase, "apple123");
 }
 
 function getRemainingGaz() {
@@ -141,31 +136,26 @@ function loadContract(onContractLoaded) {
         } else {
             regAddress = String(content).trim();
         }
-        fs.readFile(REG_FILE, function(err, data){
+        fs.readFile(REG_FILE, (err, data) => {
             if (err) {
                 console.log("Can't read contract ABI: " + err);
                 throw err;
             }
+            const dat = JSON.parse(data);
             regData = JSON.parse(data).contracts.registrar.GlobalRegistrar;
-            regContract = web3.eth.contract(regData.abi);
+            regContract = new web3.eth.Contract(regData.abi);
             console.log("Loading name contract from blockchain at " + regAddress);
-            web3.eth.getCode(regAddress, function(error, result) {
+            web3.eth.getCode(regAddress, (error, result) => {
                 if (error)
                     console.log("Error getting contract code: " + error);
                 if (!result || result == "0x") {
                     console.log("Contract not found at " + regAddress);
                     initContract(onContractLoaded);
                 } else {
-                    regContract.at(regAddress, function(err, result) {
-                        console.log("Contract found and loaded from " + regAddress);
-                        if(!err) {
-                            reg = result;
-                            onContractLoaded(reg)
-                        }
-                        else {
-                            console.error("err: " + err);
-                        }
-                    });
+                    regContract.options.address = regAddress;
+                    regContract.options.from = coinbase;
+                    reg = regContract;
+                    onContractLoaded(reg);
                 }
             });
         });
@@ -173,10 +163,10 @@ function loadContract(onContractLoaded) {
 }
 
 function initContract(onContractInitialized) {
-    waitForGaz(3000000, function(){
+    waitForGaz(1000000, () => {
         regContract.new({ from: coinbase,
                           data: '0x'+regData.evm.bytecode.object,
-                          gas: 3000000 }, function(e, contract) {
+                          gas: 1000000 }, (e, contract) => {
             if(!e) {
                 if(!contract.address) {
                     console.log("Contract transaction send: TransactionHash: " + contract.transactionHash + " waiting to be mined...");
@@ -211,7 +201,7 @@ function isHashZero(h) {
 }
 
 function parseString(s) {
-    return s ? web3.toUtf8(s) : s;
+    return s ? web3.utils.hexToUtf8(s) : s;
 }
 
 function formatAddress(address) {
@@ -224,7 +214,7 @@ function formatAddress(address) {
                 s = "0x" + s;
             if (new BigNumber(s.substr(2), 16) == 0)
                 return undefined;
-            return s;
+            return s.toLowerCase();
         } catch (err) {}
     }
     return undefined;
@@ -233,7 +223,7 @@ function formatAddress(address) {
 function readCertificateChain(path) {
     let cert = [];
     const ca = [];
-    fs.readFileSync(path, 'utf8').split("\n").forEach(function(line) {
+    fs.readFileSync(path, 'utf8').split("\n").forEach((line) => {
         cert.push(line);
         if (line.match(/-END CERTIFICATE-/)) {
             ca.push(cert.join("\n"));
@@ -248,15 +238,15 @@ function startServer(result) {
     const app = express();
     app.disable('x-powered-by');
     app.use(bodyParser.json());
-    app.use(function(req, res, next) {
+    app.use((req, res, next) => {
       res.setHeader('Content-Type', 'application/json');
       next();
     });
 
     // Register name lookup handler
-    app.get("/name/:name", function(req, http_res) {
+    app.get("/name/:name", (req, http_res) => {
         try {
-            reg.addr(formatName(req.params.name), function(err, res_addr) {
+            reg.methods.addr(formatName(req.params.name)).call((err, res_addr) => {
                 try {
                     if (err)
                         console.log("Name lookup error: " + err);
@@ -264,22 +254,23 @@ function startServer(result) {
                         throw Error("name not registered");
                         //http_res.status(404).end(JSON.stringify({"error": "name not registered"}));
                     } else {
-                        reg.publickey(formatName(req.params.name), function(err, res_publickey) {
+                        reg.methods.publickey(formatName(req.params.name)).call((err, res_publickey) => {
                             try {
                                 if (err)
                                     console.log("Name lookup error: " + err);
                                 if (isHashZero(res_publickey)) {
                                     http_res.end(JSON.stringify({"name": req.params.name, "addr": res_addr}));
                                 } else {
-                                    reg.signature(formatName(req.params.name), function(err, res_signature) {
+                                    reg.methods.signature(formatName(req.params.name)).call((err, res_signature) => {
                                         try {
                                             if (err)
                                                 console.log("Name lookup error: " + err);
-                                            if (isHashZero(res_signature)) {
-                                                http_res.end(JSON.stringify({"name": req.params.name, "addr": res_addr}));
-                                            } else {
-                                                http_res.end(JSON.stringify({"name": req.params.name, "addr": res_addr, "publickey": res_publickey, "signature": res_signature }));
-                                            }
+                                            const resObj = isHashZero(res_signature)
+                                                ? {"name": req.params.name, "addr": res_addr}
+                                                : {"name": req.params.name, "addr": res_addr, "publickey": res_publickey, "signature": res_signature };
+                                            cache[req.params.name] = resObj;
+                                            addrCache[res_addr] = resObj;
+                                            http_res.end(JSON.stringify(resObj));
                                         } catch (err) {
                                             console.log("Name lookup exception: " + err);
                                             http_res.status(500).end(JSON.stringify({"error": "server error"}));
@@ -293,16 +284,12 @@ function startServer(result) {
                         });
                     }
                 } catch (err) {
-                    if(cache[req.params.name] != undefined){
-                            if(cache[req.params.name]['publickey'] && cache[req.params.name]['signature']){
-                                http_res.end(JSON.stringify({"name": req.params.name, "addr": cache[req.params.name]['addr'], "publickey": cache[req.params.name]['publickey'], "signature": cache[req.params.name]['signature']}));
-                            }
-                            else{
-                                http_res.end(JSON.stringify({"name": req.params.name, "addr": cache[req.params.name]['addr']}));
-                            }
+                    const cachedName = cache[req.params.name];
+                    if (cachedName != undefined) {
+                        http_res.end(JSON.stringify(cachedName));
                     }
-                    else{
-                        http_res.status(404).end(JSON.stringify({"error": "name not registered"}));    
+                    else {
+                        http_res.status(404).end(JSON.stringify({"error": "name not registered"}));
                     }
                 }
             });
@@ -312,9 +299,9 @@ function startServer(result) {
         }
     });
 
-    app.get("/name/:name/publickey", function(req, http_res) {
+    app.get("/name/:name/publickey", (req, http_res) => {
         try {
-            reg.publickey(formatName(req.params.name), function(err, res) {
+            reg.methods.publickey(formatName(req.params.name)).call((err, res) => {
                 try {
                     if (err)
                         console.log("Name lookup error: " + err);
@@ -334,9 +321,9 @@ function startServer(result) {
         }
     });
 
-    app.get("/name/:name/signature", function(req, http_res) {
+    app.get("/name/:name/signature", (req, http_res) => {
         try {
-            reg.signature(formatName(req.params.name), function(err, res) {
+            reg.methods.signature(formatName(req.params.name)).call((err, res) => {
                 try {
                     if (err)
                         console.log("Name lookup error: " + err);
@@ -357,9 +344,9 @@ function startServer(result) {
     });
 
     // Register owner lookup handler
-    app.get("/name/:name/owner", function(req, http_res) {
+    app.get("/name/:name/owner", (req, http_res) => {
         try {
-            reg.owner(req.params.name, function(err, res) {
+            reg.methods.owner(req.params.name).call((err, res) => {
                 try {
                     if (err)
                         console.log("Owner lookup error: " + err);
@@ -380,7 +367,7 @@ function startServer(result) {
     });
 
     // Register address lookup handler
-    app.get("/addr/:addr", function(req, http_res) {
+    app.get("/addr/:addr", (req, http_res) => {
         try {
             var addr = formatAddress(req.params.addr);
             if (!addr) {
@@ -388,15 +375,21 @@ function startServer(result) {
                 http_res.status(400).end(JSON.stringify({"success": false}));
                 return;
             }
-            reg.name(addr, function(err, res) {
+            reg.methods.name(addr).call((err, res) => {
                 try {
                     if (err)
                         console.log("Address lookup error: " + err);
                     var name = parseString(res);
                     if (name)
                         http_res.end(JSON.stringify({"name": name}));
-                    else
-                        http_res.status(404).end(JSON.stringify({"error": "address not registered"}));
+                    else {
+                        const cachedAddr = addrCache[addr];
+                        if (cachedAddr != undefined) {
+                            http_res.end(JSON.stringify(cachedAddr));
+                        } else {
+                            http_res.status(404).end(JSON.stringify({"error": "address not registered"}));
+                        }
+                    }
                 } catch (err) {
                     console.log("Address lookup exception: " + err);
                     http_res.status(500).end(JSON.stringify({"error": "server error"}));
@@ -409,9 +402,9 @@ function startServer(result) {
     });
 
     // Register name registration handler
-    app.post("/name/:name", function(req, http_res) {
+    app.post("/name/:name", (req, http_res) => {
         try {
-            var addr = formatAddress(req.body.addr);
+            const addr = formatAddress(req.body.addr);
             if (!addr) {
                 console.log("Error parsing input address");
                 http_res.status(400).end(JSON.stringify({"success": false}));
@@ -460,38 +453,41 @@ function startServer(result) {
                 }
             }
             console.log("Got reg request (" + req.params.name + " -> " + addr + ") from " + req.body.owner);
-            reg.owner(req.params.name, function(err, owner) {
+            reg.methods.owner(req.params.name).call((err, owner) => {
                 if (owner == 0) {
-                    reg.name(addr, function(err, res) {
+                    reg.methods.name(addr, (err, res) => {
                         try {
                             if (err)
                                 console.log("Error checking name: " + err);
-                            var name = parseString(res);
+                            let name = parseString(res);
                             if (name) {
                                 console.log("Address " + addr + " already registered with name: " + name);
                                 http_res.status(403).end(JSON.stringify({"success": false, "name": name, "addr": addr}));
                             } else {
                                 console.log("Remaing gaz: " + getRemainingGaz());
-                                unlockAccount();
+                                //unlockAccount();
                                 reg.reserveFor.sendTransaction(formatName(req.params.name), req.body.owner, addr, publickey, signature, {
                                     from: coinbase,
                                     gas: 3000000
-                                }, function(terr, reg_c) {
+                                }, (terr, reg_c) => {
                                     if (terr) {
                                         console.log("Transaction error " + JSON.stringify(terr));
                                         http_res.end(JSON.stringify(terr));
                                     } else {
                                         //Add the registration into the cache.
-                                        cache[req.params.name] = {
+                                        const newReg = {
                                             addr,
+                                            name: req.params.name,
                                             publickey,
                                             signature
                                         };
+                                        cache[req.params.name] = newReg;
+                                        addrCache[addr] = newReg;
                                         //Now we continue with the sending of the transactions.
                                         console.log("Transaction sent " + reg_c);
                                         // Send answer as soon as the transaction is queued
                                         http_res.end(JSON.stringify({"success": true}));
-                                        web3.eth.awaitConsensus(reg_c, function(error) {
+                                        web3.eth.awaitConsensus(reg_c, (error) => {
                                             if (error) {
                                                 console.log(error);
                                                 return;
@@ -508,7 +504,7 @@ function startServer(result) {
                     });
                 } else {
                     if (owner == req.body.owner) {
-                        reg.addr(req.params.name, function(err, reg_addr) {
+                        reg.methods.addr(req.params.name).call((err, reg_addr) => {
                             if (reg_addr == addr) {
                                 http_res.end(JSON.stringify({"success": true}));
                             } else {
@@ -526,7 +522,7 @@ function startServer(result) {
         }
     });
     try {
-        http.createServer(app).listen(80);
+        http.createServer(app).listen(8080);
     } catch (err) {
         console.log("Error starting HTTP server: " + err);
     }
@@ -545,7 +541,13 @@ function startServer(result) {
 }
 
 if(argv['_'] != 0){
-    loadNames(argv['_']);  
+    loadNames(argv['_']);
 }
-unlockAccount();
-loadContract(startServer);
+
+web3.eth.getCoinbase(async (error, result) => {
+    console.log('Coinbase: ' + result);
+    coinbase = result;
+    balance = await web3.eth.getBalance(coinbase);
+    console.log('Balance: ' + balance.toString(10));
+    loadContract(startServer);
+});
