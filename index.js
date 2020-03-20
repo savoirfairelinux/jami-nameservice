@@ -33,6 +33,7 @@ const path = require('path');
 //Patch to support caching.
 //map of form {name,address}
 const cache = {};
+const addrCache = {};
 
 function validateFile(filename){
     if ( path.isAbsolute(filename) && fs.existsSync(filename) )
@@ -45,10 +46,10 @@ function validateFile(filename){
 function loadCache(batchInputFile) {
     const NAME_LIST = JSON.parse(fs.readFileSync(batchInputFile, 'utf8'));
     for (const entry of Object.entries(NAME_LIST)) {
-        cache[entry[0]] = entry[1]
+        cache[entry[1]['name']] = entry[1];
+        addrCache[entry[1]['addr']] = entry[1];
     }
 }
-
 
 
 Object.getPrototypeOf(web3.eth).awaitConsensus = function(txhash, mined_cb) {
@@ -275,11 +276,12 @@ function startServer(result) {
                                         try {
                                             if (err)
                                                 console.log("Name lookup error: " + err);
-                                            if (isHashZero(res_signature)) {
-                                                http_res.end(JSON.stringify({"name": req.params.name, "addr": res_addr}));
-                                            } else {
-                                                http_res.end(JSON.stringify({"name": req.params.name, "addr": res_addr, "publickey": res_publickey, "signature": res_signature }));
-                                            }
+                                            const resObj = isHashZero(res_signature)
+                                                ? {"name": req.params.name, "addr": res_addr}
+                                                : {"name": req.params.name, "addr": res_addr, "publickey": res_publickey, "signature": res_signature };
+                                            cache[req.params.name] = resObj;
+                                            addrCache[res_addr] = resObj;
+                                            http_res.end(JSON.stringify(resObj));
                                         } catch (err) {
                                             console.log("Name lookup exception: " + err);
                                             http_res.status(500).end(JSON.stringify({"error": "server error"}));
@@ -293,16 +295,12 @@ function startServer(result) {
                         });
                     }
                 } catch (err) {
-                    if(cache[req.params.name] != undefined){
-                            if(cache[req.params.name]['publickey'] && cache[req.params.name]['signature']){
-                                http_res.end(JSON.stringify({"name": req.params.name, "addr": cache[req.params.name]['addr'], "publickey": cache[req.params.name]['publickey'], "signature": cache[req.params.name]['signature']}));
-                            }
-                            else{
-                                http_res.end(JSON.stringify({"name": req.params.name, "addr": cache[req.params.name]['addr']}));
-                            }
+                    const cachedName = cache[req.params.name];
+                    if (cachedName != undefined) {
+                        http_res.end(JSON.stringify(cachedName));
                     }
-                    else{
-                        http_res.status(404).end(JSON.stringify({"error": "name not registered"}));    
+                    else {
+                        http_res.status(404).end(JSON.stringify({"error": "name not registered"}));
                     }
                 }
             });
@@ -395,8 +393,15 @@ function startServer(result) {
                     var name = parseString(res);
                     if (name)
                         http_res.end(JSON.stringify({"name": name}));
-                    else
-                        http_res.status(404).end(JSON.stringify({"error": "address not registered"}));
+                    else {
+                        const cachedAddr = addrCache[addr];
+                        if (cachedAddr != undefined) {
+                            http_res.end(JSON.stringify(cachedAddr));
+                        }
+                        else {
+                            http_res.status(404).end(JSON.stringify({"error": "address not registered"}));
+                        }
+                    }
                 } catch (err) {
                     console.log("Address lookup exception: " + err);
                     http_res.status(500).end(JSON.stringify({"error": "server error"}));
@@ -411,7 +416,7 @@ function startServer(result) {
     // Register name registration handler
     app.post("/name/:name", function(req, http_res) {
         try {
-            var addr = formatAddress(req.body.addr);
+            const addr = formatAddress(req.body.addr);
             if (!addr) {
                 console.log("Error parsing input address");
                 http_res.status(400).end(JSON.stringify({"success": false}));
@@ -466,7 +471,7 @@ function startServer(result) {
                         try {
                             if (err)
                                 console.log("Error checking name: " + err);
-                            var name = parseString(res);
+                            let name = parseString(res);
                             if (name) {
                                 console.log("Address " + addr + " already registered with name: " + name);
                                 http_res.status(403).end(JSON.stringify({"success": false, "name": name, "addr": addr}));
@@ -482,11 +487,14 @@ function startServer(result) {
                                         http_res.end(JSON.stringify(terr));
                                     } else {
                                         //Add the registration into the cache.
-                                        cache[req.params.name] = {
+                                        const newReg = {
                                             addr,
+                                            name: req.params.name,
                                             publickey,
                                             signature
                                         };
+                                        cache[req.params.name] = newReg;
+                                        addrCache[addr] = newReg;
                                         //Now we continue with the sending of the transactions.
                                         console.log("Transaction sent " + reg_c);
                                         // Send answer as soon as the transaction is queued
