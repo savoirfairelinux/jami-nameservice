@@ -1,0 +1,6 @@
+#!/bin/sh
+openssl genrsa -out RootCA.key 4096
+openssl req -x509 -new -nodes -key RootCA.key -subj "/C=CA/ST=QC/O=Savoir-Faire Linux" -sha256 -days 1024 -out RootCA.crt
+openssl genrsa -out jami-name-server.key 2048
+openssl req -new -sha256 -key jami-name-server.key -extensions req_ext -config ./ssl.conf -out jami-name-server.csr
+openssl x509 -req -in jami-name-server.csr -CA RootCA.crt -CAkey RootCA.key -CAcreateserial -extensions req_ext -extfile ./ssl.conf -out jami-name-server.crt -days 500 -sha256

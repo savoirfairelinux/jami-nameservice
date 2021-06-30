@@ -1,0 +1,2 @@
+#!/bin/sh
+ganache-cli --hostname 0.0.0.0 --db /var/blockchain

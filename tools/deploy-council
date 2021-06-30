@@ -1,0 +1,44 @@
+#!/bin/sh
+
+if [ -z $ENDPOINT ]; then
+    echo "No endpoint defined"
+    exit 1
+fi
+
+if [ -z $COUNCIL_JSON ]; then
+    echo "No out json defined"
+    exit 1
+fi
+
+geth attach "${ENDPOINT}" --exec 'loadScript("/dev/stdin")' <<EOF
+var out_json     = $(cat $COUNCIL_JSON);
+var council_json = out_json.contracts["council.sol:Council"];
+var abi          = council_json.abi;
+var bytecode     = "0x" + council_json.bin;
+
+var gas_estimate = web3.eth.estimateGas({data: bytecode});
+var interface    = web3.eth.contract(abi);
+
+console.log("Gas estimated: " + gas_estimate);
+
+var council = interface.new({
+    from: web3.eth.accounts[0],
+    data: bytecode,
+    gas: gas_estimate
+}, function(err, contract) {
+   if (err) {
+       console.log("Error: " + err);
+   }
+   if (contract.transactionHash) {
+       console.log("Transaction hash: " + contract.transactionHash);
+       var receipt = web3.eth.getTransactionReceipt(contract.transactionHash);
+       console.log("Gas used: " + receipt.gasUsed);
+       console.log("From: " + receipt.from);
+       if ("0x1" != receipt.status) {
+           console.log("Transaction failed");
+       } else {
+           console.log("Contract address: " + receipt.contractAddress);
+       }
+   }
+});
+EOF

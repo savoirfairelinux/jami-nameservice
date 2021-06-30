@@ -1,0 +1,31 @@
+#!/bin/sh
+
+if [ -z $ENDPOINT ]; then
+    echo "No endpoint defined"
+    exit 1
+fi
+
+if [ -z $COUNCIL_ADDR ]; then
+    echo "No council address defined"
+    exit 1
+fi
+
+if [ -z $LOGIC_ADDR ]; then
+    echo "No logic address defined"
+    exit 1
+fi
+
+if [ -z $LOGIC_JSON ]; then
+    echo "No JSON output defined"
+    exit 1
+fi
+
+geth attach "${ENDPOINT}" --exec 'loadScript("/dev/stdin")' <<EOF
+var logic_json  = $(cat $LOGIC_JSON);
+var council_abi = logic_json.contracts["council.sol:Council"].abi;
+var logic_abi   = logic_json.contracts["logic.sol:Logic"].abi;
+
+var council = web3.eth.contract(council_abi).at("${COUNCIL_ADDR}");
+council.get_logic();
+
+EOF

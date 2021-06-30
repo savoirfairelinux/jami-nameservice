@@ -1,0 +1,41 @@
+name: jami-name-server
+version: "1.0"
+author: Olivier Dion <olivier.dion@savoirfairelinux.com>
+about: Serves as a frontend between Jami and the name service on Ethereum
+args:
+
+    # http:// is mandatory!
+    - eth-addr:
+        long: eth-addr
+        help: Sets the Ethereum client address
+        default_value: http://localhost:8545
+        takes_value: true
+
+    # Set to 0.0.0.0 if in Docker!
+    - server-addr:
+        long: server-addr
+        help: Sets server listening address
+        default_value: 127.0.0.1:80
+        takes_value: true
+
+    - cache-db:
+        long: cache-db
+        help: Path to database cache
+        default_value: ":memory:"
+        takes_value: true
+
+    - limit-name:
+        long: limit-name
+        help: Limit the size of name (consume less gas)
+        takes_value: true
+
+    - COUNCIL-JSON:
+        help: Path to file that has the ABI of the council
+        required: true
+        index: 1
+
+    - COUNCIL-ADDR:
+        help: Address of the council
+        required: true
+        index: 2
+  
