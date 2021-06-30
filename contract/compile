@@ -1,0 +1,9 @@
+#!/bin/sh
+
+tmp=$(mktemp)
+
+if $SOLC --pretty-json --optimize-runs 500 --combined-json=abi,bin "$1" > "$tmp"; then
+    cat "$tmp" > "$2"
+else
+    cat "$tmp"
+fi

@@ -1,0 +1,131 @@
+version: '3'
+
+networks:
+  internal:
+
+services:
+
+  proxy:
+
+    image: traefik:v2.3
+
+    command:
+      - "--log.level=INFO"
+
+      # Listen for Docker's containers
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+
+      # Dynamic configuration for TLS
+      - "--providers.file.watch=true"
+      - "--providers.file.filename=/traefik-dynamic.yml"
+
+      # Redirect everything from unsecure web to websecure
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
+      - "--entrypoints.websecure.address=:443"
+
+    ports:
+      - "443:443"
+
+    volumes:
+      # Make sure to use system time
+      - /etc/localtime:/etc/localtime:ro
+
+      # So that Traefik can listen to the Docker events
+      - /var/run/docker.sock:/var/run/docker.sock
+
+      # Fetch dynamic configuration
+      - ./volumes/for-proxy/traefik-dynamic.yml:/traefik-dynamic.yml:ro
+
+      # Fetch certificate/key
+      - ./for-proxy/certs:/certs:ro
+
+    networks:
+      - internal
+
+  blockchain-dev:
+
+    profiles: ["dev", "debug", "test", "CI"]
+
+    build:
+      network: host
+      context: ./blockchain-dev
+      dockerfile: Dockerfile
+
+    image: jami-blockchain-dev:v1.0
+
+    logging:
+      driver: journald
+
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ./volumes/for-blockchain-dev/var/blockchain:/var/blockchain
+
+    ports:
+      - "8545:8545"
+
+    networks:
+      internal:
+        aliases:
+          - blockchain
+
+  blockchain-deploy:
+
+    profiles: ["deploy"]
+
+    build:
+      network: host
+      context: ./blockchain-deploy
+      dockerfile: Dockerfile
+
+    image: jami-blockchain-deploy:v1.0
+
+    logging:
+      driver: journald
+
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ./volumes/for-blockchain-deploy/var/blockchain:/var/blockchain
+
+    ports:
+      - "8545:8545"
+
+    networks:
+      internal:
+        aliases:
+          - blockchain
+
+  name-server:
+
+    build:
+      context: ./name-server
+      network: host
+      dockerfile: Dockerfile
+      labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.server.entrypoints=websecure"
+      - "traefik.http.routers.server.rule=PathPrefix(`/name`, `/addr`)"
+      - "traefik.http.routers.server.tls=true"
+
+    image: jami-name-server:v1.0
+
+    command: "${JAMI_NS_BLOCKCHAIN_URL}"
+
+    logging:
+      driver: syslog
+
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /dev/log:/dev/log
+
+    ports:
+      - target: 80
+        protocol: tcp
+        mode: host
+
+    networks:
+      internal:
+        aliases:
+         - jami-name-server

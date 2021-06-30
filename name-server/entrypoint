@@ -1,0 +1,4 @@
+#!/bin/sh
+export RUST_BACKTRACE=1
+export RUST_LOG=info
+jami-name-server --server-addr=0.0.0.0:80 --eth-addr=$1 --contract-json-path /var/blockchain/contract.json "$CONTRACT_ADDR"

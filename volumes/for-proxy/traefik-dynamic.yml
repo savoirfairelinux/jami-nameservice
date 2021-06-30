@@ -1,0 +1,7 @@
+tls:
+  stores:
+    default:
+      defaultCertificate:
+        certFile: /certs/jami-name-server.crt
+        keyFile: /certs/jami-name-server.key
+
