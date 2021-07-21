@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "5741b169_b59da353",
+        "filename": "contract/council.sol",
+        "patchSetId": 2
+      },
+      "lineNbr": 183,
+      "author": {
+        "id": 919
+      },
+      "writtenOn": "2021-07-21T14:54:19Z",
+      "side": 1,
+      "message": "Deadlock if proposal time to live has passed and not enough participation",
+      "revId": "e9c3c75f8d891a724f6cb15217644e3ef22f71a3",
+      "serverId": "1e26b4c1-6b8c-47ff-9df7-501b633d3b5a"
+    }
+  ]
+}
