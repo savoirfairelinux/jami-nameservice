@@ -1,6 +1,7 @@
 {
   "comments": [
     {
+      "unresolved": true,
       "key": {
         "uuid": "41c6be7a_7138a8ab",
         "filename": "contract/council.sol",
@@ -14,8 +15,25 @@
       "side": 1,
       "message": "Note that this is not good at all.  Because, member A could vote for a proposition with its stake, then delegate all of it to another member that also vote, and vote, and vote, with the same stake been transfered.\n\nWe need to think of a way to allow transfert of stake while protecting a proposal.",
       "revId": "b2ef37b5dfbf3dc68e5dd03fddf4c6664fac3d1b",
-      "serverId": "1e26b4c1-6b8c-47ff-9df7-501b633d3b5a",
-      "unresolved": true
+      "serverId": "1e26b4c1-6b8c-47ff-9df7-501b633d3b5a"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "56398012_202619dc",
+        "filename": "contract/council.sol",
+        "patchSetId": 1
+      },
+      "lineNbr": 116,
+      "author": {
+        "id": 919
+      },
+      "writtenOn": "2021-10-22T18:17:11Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "41c6be7a_7138a8ab",
+      "revId": "b2ef37b5dfbf3dc68e5dd03fddf4c6664fac3d1b",
+      "serverId": "1e26b4c1-6b8c-47ff-9df7-501b633d3b5a"
     }
   ]
 }
